@@ -1,0 +1,158 @@
+# BTHome nRF52840 Two-Gang Switch Configuration
+# Broadcasts switch states via BLE using BTHome v2 protocol
+# Compatible with Home Assistant's BTHome integration
+#
+# Board: Seeed XIAO BLE (nRF52840)
+# Uses Zephyr RTOS BLE stack
+#
+# Pinout (XIAO nRF52840):
+#   D0 = P0.02 (GPIO0)    D7/RX  = P1.12 (GPIO7)
+#   D1 = P0.03 (GPIO1)    D8/SCK = P1.13 (GPIO8)
+#   D2 = P0.28 (GPIO2)    D9/MISO = P1.14 (GPIO9)
+#   D3 = P0.29 (GPIO3)    D10/MOSI = P1.15 (GPIO10)
+#   D4/SDA = P0.04 (GPIO4)
+#   D5/SCL = P0.05 (GPIO5)
+#   D6/TX = P1.11 (GPIO6)
+
+esphome:
+  name: bthome-2gang-nrf52
+  friendly_name: BTHome 2-Gang Switch
+  platformio_options:
+    board_build.mcu: nrf52840
+
+nrf52:
+  board: xiao_ble
+  # Bootloader options: adafruit, adafruit_nrf52_sd132, adafruit_nrf52_sd140_v6
+  bootloader: adafruit
+
+logger:
+
+external_components:
+  - source:
+      type: local
+      path: components
+    components: [bthome]
+
+#
+# ========== BUTTON INPUTS ==========
+#
+
+binary_sensor:
+  # Button 1 - physical wall switch input (D0)
+  - platform: gpio
+    pin:
+      number: GPIO0
+      mode: INPUT_PULLUP
+      inverted: true
+    id: button_1
+    name: "Button 1"
+    filters:
+      - delayed_on: 10ms
+      - delayed_off: 10ms
+    on_press:
+      - switch.toggle: relay_1
+
+  # Button 2 - physical wall switch input (D1)
+  - platform: gpio
+    pin:
+      number: GPIO1
+      mode: INPUT_PULLUP
+      inverted: true
+    id: button_2
+    name: "Button 2"
+    filters:
+      - delayed_on: 10ms
+      - delayed_off: 10ms
+    on_press:
+      - switch.toggle: relay_2
+
+#
+# ========== RELAY OUTPUTS ==========
+#
+
+switch:
+  # Relay 1 - controls load 1 (D2)
+  - platform: gpio
+    pin: GPIO2
+    id: relay_1
+    name: "Switch 1"
+    restore_mode: RESTORE_DEFAULT_OFF
+
+  # Relay 2 - controls load 2 (D3)
+  - platform: gpio
+    pin: GPIO3
+    id: relay_2
+    name: "Switch 2"
+    restore_mode: RESTORE_DEFAULT_OFF
+
+#
+# ========== STATUS LEDS (optional) ==========
+#
+
+output:
+  # LED 1 - indicates relay 1 state (D4/SDA)
+  - platform: gpio
+    pin: GPIO4
+    id: led_1
+
+  # LED 2 - indicates relay 2 state (D5/SCL)
+  - platform: gpio
+    pin: GPIO5
+    id: led_2
+
+# Sync LEDs with relay states
+interval:
+  - interval: 100ms
+    then:
+      - if:
+          condition:
+            switch.is_on: relay_1
+          then:
+            - output.turn_on: led_1
+          else:
+            - output.turn_off: led_1
+      - if:
+          condition:
+            switch.is_on: relay_2
+          then:
+            - output.turn_on: led_2
+          else:
+            - output.turn_off: led_2
+
+#
+# ========== BTHOME CONFIGURATION ==========
+#
+
+# Template binary sensors to expose switch states to BTHome
+binary_sensor:
+  - platform: template
+    id: switch_1_state
+    name: "Switch 1 State"
+    lambda: 'return id(relay_1).state;'
+
+  - platform: template
+    id: switch_2_state
+    name: "Switch 2 State"
+    lambda: 'return id(relay_2).state;'
+
+bthome:
+  # Advertising interval (20ms - 10240ms)
+  min_interval: 1s
+  max_interval: 5s
+
+  # TX power for nRF52: -40, -20, -16, -12, -8, -4, 0, 2, 3, 4, 5, 6, 7, 8 dBm
+  tx_power: 4
+
+  # Optional: Enable encryption (32 hex chars = 16 bytes)
+  # Generate key: openssl rand -hex 16
+  # encryption_key: "a1b2c3d4e5f6071829304a5b6c7d8e9f"
+
+  # Binary sensor measurements to broadcast
+  # Using 'power' type for switch states (off/on)
+  binary_sensors:
+    - type: power
+      id: switch_1_state
+      advertise_immediately: true
+    - type: power
+      id: switch_2_state
+      advertise_immediately: true

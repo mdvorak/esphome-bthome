@@ -37,13 +37,13 @@ external_components:
 
 ## Platform Requirements
 
-### ESP32
+### ESP32 (XIAO ESP32-C3)
 
 Requires ESP-IDF framework and the `esp32_ble` component:
 
 ```yaml
 esp32:
-  board: esp32dev
+  board: seeed_xiao_esp32c3
   framework:
     type: esp-idf
 
@@ -51,7 +51,18 @@ esp32_ble:
   id: ble
 ```
 
-### nRF52
+**XIAO ESP32-C3 Pinout:**
+```
+D0/A0 = GPIO2     D7/RX   = GPIO20
+D1/A1 = GPIO3     D8/SCK  = GPIO8
+D2/A2 = GPIO4     D9/MISO = GPIO9
+D3/A3 = GPIO5     D10/MOSI = GPIO10
+D4/SDA = GPIO6
+D5/SCL = GPIO7
+D6/TX = GPIO21
+```
+
+### nRF52 (XIAO BLE nRF52840)
 
 Requires Zephyr framework:
 
@@ -59,6 +70,17 @@ Requires Zephyr framework:
 nrf52:
   board: xiao_ble
   bootloader: adafruit
+```
+
+**XIAO nRF52840 Pinout:**
+```
+D0 = P0.02 (GPIO0)     D7/RX   = P1.12 (GPIO7)
+D1 = P0.03 (GPIO1)     D8/SCK  = P1.13 (GPIO8)
+D2 = P0.28 (GPIO2)     D9/MISO = P1.14 (GPIO9)
+D3 = P0.29 (GPIO3)     D10/MOSI = P1.15 (GPIO10)
+D4/SDA = P0.04 (GPIO4)
+D5/SCL = P0.05 (GPIO5)
+D6/TX = P1.11 (GPIO6)
 ```
 
 ## Configuration
@@ -333,6 +355,146 @@ bthome:
   binary_sensors:
     - type: motion
       id: pir_motion
+      advertise_immediately: true
+```
+
+### ESP32-C3 Two-Gang Switch (XIAO)
+
+```yaml
+esphome:
+  name: bthome-2gang-esp32
+
+esp32:
+  board: seeed_xiao_esp32c3
+  framework:
+    type: esp-idf
+
+esp32_ble:
+  id: ble
+
+external_components:
+  - source:
+      type: local
+      path: components
+    components: [bthome]
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO2  # D0
+      mode: INPUT_PULLUP
+      inverted: true
+    id: button_1
+    on_press:
+      - switch.toggle: relay_1
+
+  - platform: gpio
+    pin:
+      number: GPIO3  # D1
+      mode: INPUT_PULLUP
+      inverted: true
+    id: button_2
+    on_press:
+      - switch.toggle: relay_2
+
+  - platform: template
+    id: switch_1_state
+    lambda: 'return id(relay_1).state;'
+
+  - platform: template
+    id: switch_2_state
+    lambda: 'return id(relay_2).state;'
+
+switch:
+  - platform: gpio
+    pin: GPIO4  # D2
+    id: relay_1
+    name: "Switch 1"
+
+  - platform: gpio
+    pin: GPIO5  # D3
+    id: relay_2
+    name: "Switch 2"
+
+bthome:
+  min_interval: 1s
+  max_interval: 5s
+  tx_power: 3
+  binary_sensors:
+    - type: power
+      id: switch_1_state
+      advertise_immediately: true
+    - type: power
+      id: switch_2_state
+      advertise_immediately: true
+```
+
+### nRF52840 Two-Gang Switch (XIAO BLE)
+
+```yaml
+esphome:
+  name: bthome-2gang-nrf52
+  platformio_options:
+    board_build.mcu: nrf52840
+
+nrf52:
+  board: xiao_ble
+  bootloader: adafruit
+
+external_components:
+  - source:
+      type: local
+      path: components
+    components: [bthome]
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO0  # D0
+      mode: INPUT_PULLUP
+      inverted: true
+    id: button_1
+    on_press:
+      - switch.toggle: relay_1
+
+  - platform: gpio
+    pin:
+      number: GPIO1  # D1
+      mode: INPUT_PULLUP
+      inverted: true
+    id: button_2
+    on_press:
+      - switch.toggle: relay_2
+
+  - platform: template
+    id: switch_1_state
+    lambda: 'return id(relay_1).state;'
+
+  - platform: template
+    id: switch_2_state
+    lambda: 'return id(relay_2).state;'
+
+switch:
+  - platform: gpio
+    pin: GPIO2  # D2
+    id: relay_1
+    name: "Switch 1"
+
+  - platform: gpio
+    pin: GPIO3  # D3
+    id: relay_2
+    name: "Switch 2"
+
+bthome:
+  min_interval: 1s
+  max_interval: 5s
+  tx_power: 4
+  binary_sensors:
+    - type: power
+      id: switch_1_state
+      advertise_immediately: true
+    - type: power
+      id: switch_2_state
       advertise_immediately: true
 ```
 

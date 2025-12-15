@@ -1,0 +1,159 @@
+# BTHome ESP32-C3 Two-Gang Switch Configuration
+# Broadcasts switch states via BLE using BTHome v2 protocol
+# Compatible with Home Assistant's BTHome integration
+#
+# Board: Seeed XIAO ESP32-C3
+#
+# Pinout (XIAO ESP32-C3):
+#   D0/A0 = GPIO2    D7/RX  = GPIO20
+#   D1/A1 = GPIO3    D8/SCK = GPIO8
+#   D2/A2 = GPIO4    D9/MISO = GPIO9
+#   D3/A3 = GPIO5    D10/MOSI = GPIO10
+#   D4/SDA = GPIO6
+#   D5/SCL = GPIO7
+#   D6/TX = GPIO21
+
+esphome:
+  name: bthome-2gang-esp32
+  friendly_name: BTHome 2-Gang Switch
+
+esp32:
+  board: seeed_xiao_esp32c3
+  framework:
+    type: esp-idf
+
+logger:
+
+external_components:
+  - source:
+      type: local
+      path: components
+    components: [bthome]
+
+# Required for ESP32 BLE
+esp32_ble:
+  id: ble
+
+#
+# ========== BUTTON INPUTS ==========
+#
+
+binary_sensor:
+  # Button 1 - physical wall switch input (D0/A0)
+  - platform: gpio
+    pin:
+      number: GPIO2
+      mode: INPUT_PULLUP
+      inverted: true
+    id: button_1
+    name: "Button 1"
+    filters:
+      - delayed_on: 10ms
+      - delayed_off: 10ms
+    on_press:
+      - switch.toggle: relay_1
+
+  # Button 2 - physical wall switch input (D1/A1)
+  - platform: gpio
+    pin:
+      number: GPIO3
+      mode: INPUT_PULLUP
+      inverted: true
+    id: button_2
+    name: "Button 2"
+    filters:
+      - delayed_on: 10ms
+      - delayed_off: 10ms
+    on_press:
+      - switch.toggle: relay_2
+
+#
+# ========== RELAY OUTPUTS ==========
+#
+
+switch:
+  # Relay 1 - controls load 1 (D2/A2)
+  - platform: gpio
+    pin: GPIO4
+    id: relay_1
+    name: "Switch 1"
+    restore_mode: RESTORE_DEFAULT_OFF
+
+  # Relay 2 - controls load 2 (D3/A3)
+  - platform: gpio
+    pin: GPIO5
+    id: relay_2
+    name: "Switch 2"
+    restore_mode: RESTORE_DEFAULT_OFF
+
+#
+# ========== STATUS LEDS (optional) ==========
+#
+
+output:
+  # LED 1 - indicates relay 1 state (D4/SDA)
+  - platform: gpio
+    pin: GPIO6
+    id: led_1
+
+  # LED 2 - indicates relay 2 state (D5/SCL)
+  - platform: gpio
+    pin: GPIO7
+    id: led_2
+
+# Sync LEDs with relay states
+interval:
+  - interval: 100ms
+    then:
+      - if:
+          condition:
+            switch.is_on: relay_1
+          then:
+            - output.turn_on: led_1
+          else:
+            - output.turn_off: led_1
+      - if:
+          condition:
+            switch.is_on: relay_2
+          then:
+            - output.turn_on: led_2
+          else:
+            - output.turn_off: led_2
+
+#
+# ========== BTHOME CONFIGURATION ==========
+#
+
+# Template binary sensors to expose switch states to BTHome
+binary_sensor:
+  - platform: template
+    id: switch_1_state
+    name: "Switch 1 State"
+    lambda: 'return id(relay_1).state;'
+
+  - platform: template
+    id: switch_2_state
+    name: "Switch 2 State"
+    lambda: 'return id(relay_2).state;'
+
+bthome:
+  # Advertising interval (20ms - 10240ms)
+  min_interval: 1s
+  max_interval: 5s
+
+  # TX power: -12, -9, -6, -3, 0, 3, 6, 9 dBm
+  tx_power: 3
+
+  # Optional: Enable encryption (32 hex chars = 16 bytes)
+  # Generate key: openssl rand -hex 16
+  # encryption_key: "231d39c1d7cc1ab1aee224cd096db932"
+
+  # Binary sensor measurements to broadcast
+  # Using 'power' type for switch states (off/on)
+  binary_sensors:
+    - type: power
+      id: switch_1_state
+      advertise_immediately: true
+    - type: power
+      id: switch_2_state
+      advertise_immediately: true
