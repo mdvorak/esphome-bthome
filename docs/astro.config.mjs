@@ -11,6 +11,17 @@ export default defineConfig({
       social: {
         github: 'https://github.com/dz0ny/esphome-bthome',
       },
+      expressiveCode: {
+        themes: ['github-dark', 'github-light'],
+        defaultProps: {
+          wrap: true,
+        },
+        styleOverrides: {
+          borderRadius: '0.5rem',
+          codePaddingBlock: '0.75rem',
+          codePaddingInline: '1rem',
+        },
+      },
       sidebar: [
         {
           label: 'Getting Started',
