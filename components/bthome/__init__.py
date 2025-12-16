@@ -287,6 +287,20 @@ async def to_code(config):
         from esphome.components import esp32_ble
         from esphome.components.esp32 import add_idf_sdkconfig_option
 
+        cg.add_define("USE_ESP32_BLE_UUID")
         cg.add_define("USE_ESP32_BLE_ADVERTISING")
         add_idf_sdkconfig_option("CONFIG_BT_ENABLED", True)
         add_idf_sdkconfig_option("CONFIG_BT_BLE_42_FEATURES_SUPPORTED", True)
+
+    elif CORE.is_nrf52:
+        from esphome.components.zephyr import zephyr_add_prj_conf
+
+        # Enable Bluetooth
+        zephyr_add_prj_conf("BT", True)
+        zephyr_add_prj_conf("BT_BROADCASTER", True)
+        zephyr_add_prj_conf("BT_DEVICE_NAME", f'"{CORE.name}"')
+
+        # Enable tinycrypt for AES-CCM encryption
+        zephyr_add_prj_conf("TINYCRYPT", True)
+        zephyr_add_prj_conf("TINYCRYPT_AES", True)
+        zephyr_add_prj_conf("TINYCRYPT_AES_CCM", True)

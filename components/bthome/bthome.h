@@ -64,7 +64,7 @@ class BTHome : public Component {
   void set_max_interval(uint16_t val) { this->max_interval_ = val; }
 
 #ifdef USE_ESP32
-  void set_tx_power(esp_power_level_t val) { this->tx_power_esp32_ = val; }
+  void set_tx_power(int val) { this->tx_power_esp32_ = static_cast<esp_power_level_t>(val); }
 #endif
 #ifdef USE_NRF52
   void set_tx_power(int8_t val) { this->tx_power_nrf52_ = val; }

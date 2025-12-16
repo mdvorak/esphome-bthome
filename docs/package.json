@@ -1,0 +1,17 @@
+{
+  "name": "esphome-bthome-docs",
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "bunx --bun astro dev",
+    "start": "bunx --bun astro dev",
+    "build": "bunx --bun astro build",
+    "preview": "bunx --bun astro preview",
+    "astro": "bunx --bun astro"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.29.0",
+    "astro": "^4.16.0",
+    "sharp": "^0.32.5"
+  }
+}
