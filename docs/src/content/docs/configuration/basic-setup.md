@@ -158,3 +158,4 @@ For binary sensors like motion or door contacts, enable `advertise_immediately: 
 - [Sensors](/configuration/sensors) - All supported sensor types
 - [Binary Sensors](/configuration/binary-sensors) - All supported binary sensor types
 - [Encryption](/configuration/encryption) - Secure your sensor data
+- [Power Saving](/configuration/power-saving) - Optimize for battery-powered devices

@@ -12,15 +12,14 @@ esp32:
   board: seeed_xiao_esp32s3
   framework:
     type: esp-idf
+    sdkconfig_options:
+      CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_80: y
 
 logger:
 
 wifi:
-  ap:
-    ssid: "BTHome-CPU-Temp"
-
-# Required for WiFi AP web interface
-captive_portal:
+  enable_on_boot: false
+  ap: {}
 
 external_components:
 - source:
