@@ -27,23 +27,28 @@ Available frequencies:
 80MHz is sufficient for most BTHome applications since BLE advertising and sensor reading don't require high CPU speeds.
 :::
 
-## Disable WiFi on Boot
+## WiFi Power Saving
 
-Keep WiFi capability but disable it at startup to save power:
+Combine disabling WiFi on boot with power save mode for maximum savings:
 
 ```yaml
 wifi:
   enable_on_boot: false
   ap: {}
+  power_save_mode: HIGH
 ```
 
-This configuration:
-- WiFi radio stays off at boot (saves ~80-100mA)
-- Can be enabled programmatically if needed
-- Empty `ap: {}` auto-generates SSID from device name
+### Options
+
+**`enable_on_boot: false`** - WiFi radio stays off at startup. BLE continues to work independently.
+
+**`power_save_mode`** - Controls WiFi power consumption when enabled:
+- `NONE` - No power saving (default)
+- `LIGHT` - Light power saving, minimal latency impact
+- `HIGH` - Maximum power saving, higher latency
 
 :::caution[OTA Updates]
-With WiFi disabled, you cannot use OTA updates. You'll need to flash via USB or enable WiFi temporarily.
+With `enable_on_boot: false`, OTA updates won't work until WiFi is enabled programmatically. Flash via USB or add a mechanism to enable WiFi when needed.
 :::
 
 ## Complete Low-Power Example
@@ -65,6 +70,7 @@ logger:
 wifi:
   enable_on_boot: false
   ap: {}
+  power_save_mode: HIGH
 
 esp32_ble:
   id: ble
@@ -88,7 +94,8 @@ bthome:
 | Setting | Impact | Recommendation |
 |---------|--------|----------------|
 | CPU frequency | High | Use 80MHz for BLE-only devices |
-| WiFi on boot | High | Disable if OTA not needed |
+| WiFi on boot | High | Disable with `enable_on_boot: false` |
+| WiFi power save | Medium | Use `power_save_mode: HIGH` |
 | Advertising interval | Medium | 30s+ for battery devices |
 | TX power | Medium | Lower if range permits |
 | Sensor update interval | Low | Match to advertising interval |

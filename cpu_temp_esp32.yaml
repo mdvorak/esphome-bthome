@@ -20,6 +20,7 @@ logger:
 wifi:
   enable_on_boot: false
   ap: {}
+  power_save_mode: HIGH
 
 external_components:
 - source:
