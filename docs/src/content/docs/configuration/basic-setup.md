@@ -23,8 +23,8 @@ bthome:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `min_interval` | Time | `1s` | Minimum advertising interval (20ms - 10240ms) |
-| `max_interval` | Time | `1s` | Maximum advertising interval (20ms - 10240ms) |
+| `min_interval` | Time | `1s` | Minimum advertising interval (1s - 10240ms) |
+| `max_interval` | Time | `1s` | Maximum advertising interval (1s - 10240ms) |
 | `tx_power` | Integer | `0` | Transmit power in dBm |
 | `encryption_key` | String | - | Optional 16-byte encryption key (32 hex chars) |
 | `sensors` | List | - | List of sensor measurements to broadcast |

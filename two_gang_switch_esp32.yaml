@@ -18,17 +18,24 @@ esphome:
   friendly_name: BTHome 2-Gang Switch
 
 esp32:
-  board: seeed_xiao_esp32c3
+  board: seeed_xiao_esp32s3
   framework:
     type: esp-idf
 
 logger:
 
+wifi:
+  ap:
+    ssid: "BTHome-2Gang-Fallback"
+
+# Required for WiFi AP web interface
+captive_portal:
+
 external_components:
-  - source:
-      type: local
-      path: components
-    components: [bthome]
+- source:
+    type: local
+    path: components
+  components: [ bthome ]
 
 # Required for ESP32 BLE
 esp32_ble:
@@ -39,104 +46,103 @@ esp32_ble:
 #
 
 binary_sensor:
-  # Button 1 - physical wall switch input (D0/A0)
-  - platform: gpio
-    pin:
-      number: GPIO2
-      mode: INPUT_PULLUP
-      inverted: true
-    id: button_1
-    name: "Button 1"
-    filters:
-      - delayed_on: 10ms
-      - delayed_off: 10ms
-    on_press:
-      - switch.toggle: relay_1
+# Button 1 - physical wall switch input (D0/A0)
+- platform: gpio
+  pin:
+    number: GPIO2
+    mode: INPUT_PULLUP
+    inverted: true
+  id: switch_1
+  name: "Button 1"
+  filters:
+  - delayed_on: 10ms
+  - delayed_off: 10ms
+  on_press:
+  - switch.toggle: relay_1
 
-  # Button 2 - physical wall switch input (D1/A1)
-  - platform: gpio
-    pin:
-      number: GPIO3
-      mode: INPUT_PULLUP
-      inverted: true
-    id: button_2
-    name: "Button 2"
-    filters:
-      - delayed_on: 10ms
-      - delayed_off: 10ms
-    on_press:
-      - switch.toggle: relay_2
+# Button 2 - physical wall switch input (D1/A1)
+- platform: gpio
+  pin:
+    number: GPIO3
+    mode: INPUT_PULLUP
+    inverted: true
+  id: switch_2
+  name: "Button 2"
+  filters:
+  - delayed_on: 10ms
+  - delayed_off: 10ms
+  on_press:
+  - switch.toggle: relay_2
 
 #
 # ========== RELAY OUTPUTS ==========
 #
 
 switch:
-  # Relay 1 - controls load 1 (D2/A2)
-  - platform: gpio
-    pin: GPIO4
-    id: relay_1
-    name: "Switch 1"
-    restore_mode: RESTORE_DEFAULT_OFF
+# Relay 1 - controls load 1 (D2/A2)
+- platform: gpio
+  pin: GPIO4
+  id: relay_1
+  name: "Switch 1"
+  restore_mode: RESTORE_DEFAULT_OFF
 
-  # Relay 2 - controls load 2 (D3/A3)
-  - platform: gpio
-    pin: GPIO5
-    id: relay_2
-    name: "Switch 2"
-    restore_mode: RESTORE_DEFAULT_OFF
+# Relay 2 - controls load 2 (D3/A3)
+- platform: gpio
+  pin: GPIO5
+  id: relay_2
+  name: "Switch 2"
+  restore_mode: RESTORE_DEFAULT_OFF
 
 #
 # ========== STATUS LEDS (optional) ==========
 #
 
 output:
-  # LED 1 - indicates relay 1 state (D4/SDA)
-  - platform: gpio
-    pin: GPIO6
-    id: led_1
+# LED 1 - indicates relay 1 state (D4/SDA)
+- platform: gpio
+  pin: GPIO6
+  id: led_1
 
-  # LED 2 - indicates relay 2 state (D5/SCL)
-  - platform: gpio
-    pin: GPIO7
-    id: led_2
+# LED 2 - indicates relay 2 state (D5/SCL)
+- platform: gpio
+  pin: GPIO7
+  id: led_2
 
 # Sync LEDs with relay states
 interval:
-  - interval: 100ms
-    then:
-      - if:
-          condition:
-            switch.is_on: relay_1
-          then:
-            - output.turn_on: led_1
-          else:
-            - output.turn_off: led_1
-      - if:
-          condition:
-            switch.is_on: relay_2
-          then:
-            - output.turn_on: led_2
-          else:
-            - output.turn_off: led_2
+- interval: 100ms
+  then:
+  - if:
+      condition:
+        switch.is_on: relay_1
+      then:
+      - output.turn_on: led_1
+      else:
+      - output.turn_off: led_1
+  - if:
+      condition:
+        switch.is_on: relay_2
+      then:
+      - output.turn_on: led_2
+      else:
+      - output.turn_off: led_2
 
 #
 # ========== BTHOME CONFIGURATION ==========
 #
 
-# Template binary sensors to expose switch states to BTHome
-binary_sensor:
-  - platform: template
-    id: switch_1_state
-    name: "Switch 1 State"
-    lambda: 'return id(relay_1).state;'
-
-  - platform: template
-    id: switch_2_state
-    name: "Switch 2 State"
-    lambda: 'return id(relay_2).state;'
 
 bthome:
+  # Device name defaults to esphome name ("bthome-2gang-esp32")
+  # Override with: device_name: "Custom Name"
+
+  # Optional: Manufacturer ID (16-bit, shown in BLE scan response)
+  # manufacturer_id: 0x1234
+
+  # Trigger-based device: set to true for devices that only send on events (buttons)
+  # This tells receivers not to expect regular updates
+  # trigger_based: true
+
   # Advertising interval (20ms - 10240ms)
   min_interval: 1s
   max_interval: 5s
@@ -151,9 +157,9 @@ bthome:
   # Binary sensor measurements to broadcast
   # Using 'power' type for switch states (off/on)
   binary_sensors:
-    - type: power
-      id: switch_1_state
-      advertise_immediately: true
-    - type: power
-      id: switch_2_state
-      advertise_immediately: true
+  - type: power
+    id: switch_1
+    advertise_immediately: true
+  - type: power
+    id: switch_2
+    advertise_immediately: true

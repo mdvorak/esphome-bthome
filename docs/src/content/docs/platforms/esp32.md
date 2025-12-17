@@ -27,6 +27,12 @@ esp32:
 
 logger:
 
+wifi:
+  ap:
+    ssid: "BTHome-ESP32"
+
+captive_portal:
+
 external_components:
   - source:
       type: git
@@ -85,6 +91,12 @@ esp32:
     type: esp-idf
 
 logger:
+
+wifi:
+  ap:
+    ssid: "BTHome-ESP32"
+
+captive_portal:
 
 external_components:
   - source:

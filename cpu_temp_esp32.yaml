@@ -1,0 +1,57 @@
+# BTHome ESP32 CPU Temperature Broadcaster
+# Broadcasts internal CPU temperature via BLE using BTHome v2 protocol
+# Compatible with Home Assistant's BTHome integration
+#
+# This is a minimal example showing how to broadcast sensor data
+
+esphome:
+  name: bthome-cpu-temp
+  friendly_name: BTHome CPU Temp
+
+esp32:
+  board: seeed_xiao_esp32s3
+  framework:
+    type: esp-idf
+
+logger:
+
+wifi:
+  ap:
+    ssid: "BTHome-CPU-Temp"
+
+# Required for WiFi AP web interface
+captive_portal:
+
+external_components:
+- source:
+    type: local
+    path: components
+  components: [ bthome ]
+
+# Required for ESP32 BLE
+esp32_ble:
+  id: ble
+
+# Internal CPU temperature sensor
+sensor:
+- platform: internal_temperature
+  name: "CPU Temperature"
+  id: cpu_temp
+  update_interval: 10s
+
+# BTHome configuration
+bthome:
+  # Device name defaults to esphome name ("bthome-cpu-temp")
+  # Override with: device_name: "Custom Name"
+
+  # Advertising interval
+  min_interval: 5s
+  max_interval: 10s
+
+  # TX power: -12, -9, -6, -3, 0, 3, 6, 9 dBm
+  tx_power: 0
+
+  # Sensor measurements to broadcast
+  sensors:
+  - type: temperature
+    id: cpu_temp
