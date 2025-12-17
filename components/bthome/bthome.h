@@ -1,9 +1,14 @@
 #pragma once
 
+#include "esphome/core/defines.h"
 #include "esphome/core/component.h"
 #include "esphome/core/helpers.h"
+#ifdef USE_SENSOR
 #include "esphome/components/sensor/sensor.h"
+#endif
+#ifdef USE_BINARY_SENSOR
 #include "esphome/components/binary_sensor/binary_sensor.h"
+#endif
 
 #include <array>
 
@@ -28,10 +33,15 @@ namespace bthome {
 
 // BTHome v2 constants
 static const uint16_t BTHOME_SERVICE_UUID = 0xFCD2;
-static const uint8_t BTHOME_DEVICE_INFO_UNENCRYPTED = 0x40;
-static const uint8_t BTHOME_DEVICE_INFO_ENCRYPTED = 0x41;
+// Device info byte format: bit 0 = encryption, bit 2 = trigger-based
+static const uint8_t BTHOME_DEVICE_INFO_UNENCRYPTED = 0x40;           // Regular device, no encryption
+static const uint8_t BTHOME_DEVICE_INFO_ENCRYPTED = 0x41;             // Regular device, encrypted
+static const uint8_t BTHOME_DEVICE_INFO_TRIGGER_UNENCRYPTED = 0x44;   // Trigger-based device, no encryption
+static const uint8_t BTHOME_DEVICE_INFO_TRIGGER_ENCRYPTED = 0x45;     // Trigger-based device, encrypted
 static const size_t MAX_BLE_ADVERTISEMENT_SIZE = 31;
+static const size_t MAX_DEVICE_NAME_LENGTH = 20;  // Leave room for other AD elements
 
+#ifdef USE_SENSOR
 struct SensorMeasurement {
   sensor::Sensor *sensor;
   uint8_t object_id;
@@ -40,12 +50,15 @@ struct SensorMeasurement {
   float factor;            // Multiply raw value by this to get encoded value
   bool advertise_immediately;
 };
+#endif
 
+#ifdef USE_BINARY_SENSOR
 struct BinarySensorMeasurement {
   binary_sensor::BinarySensor *sensor;
   uint8_t object_id;
   bool advertise_immediately;
 };
+#endif
 
 #ifdef USE_ESP32
 using namespace esp32_ble;
@@ -70,10 +83,18 @@ class BTHome : public Component {
   void set_tx_power(int8_t val) { this->tx_power_nrf52_ = val; }
 #endif
 
+  void set_device_name(const std::string &name);
+  void set_manufacturer_id(uint16_t id) { this->manufacturer_id_ = id; this->has_manufacturer_id_ = true; }
+  void set_trigger_based(bool trigger_based) { this->trigger_based_ = trigger_based; }
+
   void set_encryption_key(const std::array<uint8_t, 16> &key);
+#ifdef USE_SENSOR
   void add_measurement(sensor::Sensor *sensor, uint8_t object_id, uint8_t data_bytes,
                        bool is_signed, float factor, bool advertise_immediately);
+#endif
+#ifdef USE_BINARY_SENSOR
   void add_binary_measurement(binary_sensor::BinarySensor *sensor, uint8_t object_id, bool advertise_immediately);
+#endif
 
 #ifdef USE_ESP32
   void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param) override;
@@ -81,21 +102,36 @@ class BTHome : public Component {
 
  protected:
   void build_advertisement_data_();
+  void build_scan_response_data_();
   void start_advertising_();
   void stop_advertising_();
+#ifdef USE_SENSOR
   size_t encode_measurement_(uint8_t *data, size_t max_len, const SensorMeasurement &measurement);
+#endif
+#ifdef USE_BINARY_SENSOR
   size_t encode_binary_measurement_(uint8_t *data, size_t max_len, uint8_t object_id, bool value);
+#endif
   bool encrypt_payload_(const uint8_t *plaintext, size_t plaintext_len, uint8_t *ciphertext, size_t *ciphertext_len);
   void trigger_immediate_advertising_(uint8_t measurement_index, bool is_binary);
 
   // Measurements storage
+#ifdef USE_SENSOR
   StaticVector<SensorMeasurement, BTHOME_MAX_MEASUREMENTS> measurements_;
+#endif
+#ifdef USE_BINARY_SENSOR
   StaticVector<BinarySensorMeasurement, BTHOME_MAX_BINARY_MEASUREMENTS> binary_measurements_;
+#endif
 
   // Common settings
   uint16_t min_interval_{1000};
   uint16_t max_interval_{1000};
   bool advertising_{false};
+
+  // Device identification
+  std::string device_name_;
+  uint16_t manufacturer_id_{0};
+  bool has_manufacturer_id_{false};
+  bool trigger_based_{false};  // True for devices that only send on events (buttons, etc.)
 
   // Encryption
   bool encryption_enabled_{false};
@@ -107,6 +143,10 @@ class BTHome : public Component {
   size_t adv_data_len_{0};
   bool data_changed_{true};
 
+  // Scan response data (device name + manufacturer)
+  uint8_t scan_rsp_data_[MAX_BLE_ADVERTISEMENT_SIZE];
+  size_t scan_rsp_data_len_{0};
+
   // Immediate advertising
   bool immediate_advertising_pending_{false};
   uint8_t immediate_adv_measurement_index_{0};
@@ -116,12 +156,15 @@ class BTHome : public Component {
 #ifdef USE_ESP32
   esp_power_level_t tx_power_esp32_{};
   esp_ble_adv_params_t ble_adv_params_;
+  bool adv_data_set_{false};
+  bool scan_rsp_data_set_{false};
 #endif
 
 #ifdef USE_NRF52
   int8_t tx_power_nrf52_{0};
   struct bt_le_adv_param adv_param_;
   struct bt_data ad_[2];
+  struct bt_data sd_[2];  // Scan response data
 #endif
 };
 
