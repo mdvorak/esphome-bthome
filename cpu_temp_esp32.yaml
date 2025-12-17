@@ -2,7 +2,7 @@
 # Broadcasts internal CPU temperature via BLE using BTHome v2 protocol
 # Compatible with Home Assistant's BTHome integration
 #
-# This is a minimal example showing how to broadcast sensor data
+# Deep sleep example: awake 1 min, sleep 5 min
 
 esphome:
   name: bthome-cpu-temp
@@ -32,6 +32,11 @@ external_components:
 esp32_ble:
   id: ble
 
+# Deep sleep: awake 1 minute, sleep 5 minutes
+deep_sleep:
+  run_duration: 1min
+  sleep_duration: 5min
+
 # Internal CPU temperature sensor
 sensor:
 - platform: internal_temperature
@@ -41,7 +46,7 @@ sensor:
 
 # BTHome configuration
 bthome:
-  # Advertising interval
+  # Advertising interval (multiple broadcasts during 1min awake window)
   min_interval: 5s
   max_interval: 10s
 

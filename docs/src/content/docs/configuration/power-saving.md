@@ -51,6 +51,31 @@ wifi:
 With `enable_on_boot: false`, OTA updates won't work until WiFi is enabled programmatically. Flash via USB or add a mechanism to enable WiFi when needed.
 :::
 
+## Deep Sleep
+
+For maximum battery life, use deep sleep to power down the ESP32 completely between readings:
+
+```yaml
+deep_sleep:
+  run_duration: 1min    # Stay awake for 1 minute
+  sleep_duration: 5min  # Sleep for 5 minutes
+```
+
+During deep sleep, the ESP32 consumes only ~10µA. The device will:
+1. Wake up from deep sleep
+2. Initialize BLE and sensors
+3. Broadcast sensor data for `run_duration`
+4. Enter deep sleep for `sleep_duration`
+5. Repeat
+
+:::tip[Advertising during wake window]
+Set your BTHome `min_interval` and `max_interval` to broadcast multiple times during the wake window. This ensures Home Assistant receives at least one update before the device sleeps.
+:::
+
+:::caution[Wake time considerations]
+Allow enough `run_duration` for BLE to initialize and broadcast several times. 30-60 seconds minimum is recommended.
+:::
+
 ## Complete Low-Power Example
 
 ```yaml
@@ -93,6 +118,7 @@ bthome:
 
 | Setting | Impact | Recommendation |
 |---------|--------|----------------|
+| Deep sleep | Very High | Use for battery devices (~10µA sleep) |
 | CPU frequency | High | Use 80MHz for BLE-only devices |
 | WiFi on boot | High | Disable with `enable_on_boot: false` |
 | WiFi power save | Medium | Use `power_save_mode: HIGH` |
