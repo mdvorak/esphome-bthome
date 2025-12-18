@@ -423,6 +423,12 @@ void BTHome::build_scan_response_data_() {
   this->scan_rsp_data_[pos++] = 0x0A;  // Type: TX Power Level
   this->scan_rsp_data_[pos++] = static_cast<uint8_t>(tx_dbm);
 
+  // Add Appearance (Generic Sensor = 0x0540)
+  this->scan_rsp_data_[pos++] = 3;     // Length (type + 2 bytes appearance)
+  this->scan_rsp_data_[pos++] = 0x19;  // Type: Appearance
+  this->scan_rsp_data_[pos++] = 0x40;  // Low byte: 0x0540 = Generic Sensor
+  this->scan_rsp_data_[pos++] = 0x05;  // High byte
+
   // Add Complete Local Name if set
   if (!this->device_name_.empty()) {
     size_t name_len = this->device_name_.length();
@@ -575,6 +581,13 @@ void BTHome::start_advertising_() {
   this->sd_[sd_count].type = BT_DATA_TX_POWER;
   this->sd_[sd_count].data_len = sizeof(tx_power_data);
   this->sd_[sd_count].data = reinterpret_cast<const uint8_t *>(&tx_power_data);
+  sd_count++;
+
+  // Add Appearance (Generic Sensor = 0x0540)
+  static uint8_t appearance_data[] = {0x40, 0x05};  // Little-endian 0x0540
+  this->sd_[sd_count].type = BT_DATA_GAP_APPEARANCE;
+  this->sd_[sd_count].data_len = sizeof(appearance_data);
+  this->sd_[sd_count].data = appearance_data;
   sd_count++;
 
   if (!this->device_name_.empty()) {
