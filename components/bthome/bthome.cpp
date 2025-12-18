@@ -386,19 +386,7 @@ void BTHome::build_advertisement_data_() {
   // Set service data length
   this->adv_data_[service_data_len_pos] = pos - service_data_len_pos - 1;
 
-  // Add device name if it fits (complete or shortened)
-  if (!this->device_name_.empty()) {
-    size_t available = MAX_BLE_ADVERTISEMENT_SIZE - pos - 2;  // 2 bytes for length + type
-    size_t name_len = this->device_name_.length();
-    if (available >= 1) {  // At least 1 character must fit
-      bool is_complete = (name_len <= available);
-      size_t actual_len = is_complete ? name_len : available;
-      this->adv_data_[pos++] = actual_len + 1;  // Length (type + name)
-      this->adv_data_[pos++] = is_complete ? 0x09 : 0x08;  // Complete (0x09) or Shortened (0x08)
-      memcpy(this->adv_data_ + pos, this->device_name_.c_str(), actual_len);
-      pos += actual_len;
-    }
-  }
+  // Note: Device name is in scan response, not advertisement (to save space for sensor data)
 
   this->adv_data_len_ = pos;
 
@@ -415,6 +403,12 @@ void BTHome::build_advertisement_data_() {
 
 void BTHome::build_scan_response_data_() {
   size_t pos = 0;
+
+  // Add Complete List of 16-bit Service UUIDs (BTHome UUID 0xFCD2)
+  this->scan_rsp_data_[pos++] = 3;     // Length (type + 2 bytes UUID)
+  this->scan_rsp_data_[pos++] = 0x03;  // Type: Complete List of 16-bit Service UUIDs
+  this->scan_rsp_data_[pos++] = BTHOME_SERVICE_UUID & 0xFF;         // UUID low byte
+  this->scan_rsp_data_[pos++] = (BTHOME_SERVICE_UUID >> 8) & 0xFF;  // UUID high byte
 
   // Add Complete Local Name if set
   if (!this->device_name_.empty()) {
