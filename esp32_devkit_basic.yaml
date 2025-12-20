@@ -1,0 +1,59 @@
+# BTHome ESP32 DevKit Basic Example
+# Broadcasts internal CPU temperature via BLE using BTHome v2 protocol
+# Compatible with Home Assistant's BTHome integration
+#
+# Board: Generic ESP32 DevKit V1 (most common ESP32 development board)
+# This example works out-of-the-box with no external sensors required
+
+esphome:
+  name: bthome-esp32-devkit
+  friendly_name: BTHome ESP32 DevKit
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+logger:
+
+wifi:
+  enable_on_boot: false
+  ap: {}
+  power_save_mode: HIGH
+
+external_components:
+- source:
+    type: local
+    path: components
+  components: [ bthome ]
+
+# Required for ESP32 BLE
+esp32_ble:
+  id: ble
+
+# Internal CPU temperature sensor (no external hardware needed)
+sensor:
+- platform: internal_temperature
+  name: "CPU Temperature"
+  id: cpu_temp
+  update_interval: 30s
+
+# Uptime sensor to track device runtime
+- platform: uptime
+  name: "Uptime"
+  id: uptime_sensor
+  update_interval: 60s
+
+# BTHome configuration
+bthome:
+  # Advertising interval (max 10240ms)
+  min_interval: 5s
+  max_interval: 10s
+
+  # TX power: -12, -9, -6, -3, 0, 3, 6, 9 dBm
+  tx_power: 0
+
+  # Sensor measurements to broadcast
+  sensors:
+  - type: temperature
+    id: cpu_temp
