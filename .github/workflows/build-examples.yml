@@ -36,13 +36,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: 'pip'
-
-      - name: Install ESPHome
-        run: pip install esphome
 
       - name: Compile ${{ matrix.config }}
-        run: esphome compile ${{ matrix.config }}
+        run: pipx run esphome compile ${{ matrix.config }}
 
   build-nrf52:
     name: Build ${{ matrix.config }}
@@ -60,10 +56,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: 'pip'
-
-      - name: Install ESPHome
-        run: pip install esphome
 
       - name: Compile ${{ matrix.config }}
-        run: esphome compile ${{ matrix.config }}
+        run: pipx run esphome compile ${{ matrix.config }}
