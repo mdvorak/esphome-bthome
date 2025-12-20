@@ -7,12 +7,13 @@
 // Platform-specific includes based on BLE stack
 #ifdef USE_BTHOME_RECEIVER_NIMBLE
   // NimBLE stack (lighter weight, observer-only)
-  #include "esp_nimble_hci.h"
   #include "nimble/nimble_port.h"
   #include "nimble/nimble_port_freertos.h"
   #include "host/ble_hs.h"
   #include "host/util/util.h"
-  #include <esp_bt.h>
+  #include <esp_timer.h>
+  #include <freertos/FreeRTOS.h>
+  #include <freertos/semphr.h>
 #elif defined(USE_BTHOME_RECEIVER_BLUEDROID)
   // Bluedroid stack (default, via esp32_ble_tracker)
   #include "esphome/components/esp32_ble_tracker/esp32_ble_tracker.h"
@@ -275,12 +276,14 @@ class BTHomeReceiverHub : public Component {
 #ifdef USE_BTHOME_RECEIVER_NIMBLE
   // NimBLE-specific members
   bool nimble_initialized_{false};
+  bool init_attempted_{false};
   bool scanning_{false};
   static BTHomeReceiverHub *instance_;  // For NimBLE callbacks
   static void nimble_host_task_(void *param);
   static void nimble_on_sync_();
   static void nimble_on_reset_(int reason);
   static int nimble_gap_event_(struct ble_gap_event *event, void *arg);
+  void init_nimble_();
   void start_scanning_();
   void stop_scanning_();
 #endif

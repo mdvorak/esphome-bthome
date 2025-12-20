@@ -2,11 +2,12 @@
 # Enables receiving BTHome v2 sensor data from nearby devices
 
 external_components:
-  - source:
-      type: local
-      path: components
-    components: [bthome_receiver]
+- source:
+    type: local
+    path: components
+  components: [ bthome_receiver ]
 
-# BTHome Receiver Hub - uses NimBLE (lighter weight, less memory)
+# BTHome Receiver Hub - uses NimBLE for lightweight BLE scanning
 bthome_receiver:
+  dump_advertisements: true
   ble_stack: nimble

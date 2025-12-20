@@ -216,48 +216,69 @@ void BTHomeReceiverHub::setup() {
 
 #ifdef USE_BTHOME_RECEIVER_NIMBLE
   instance_ = this;
-
-  // Release classic BT memory (we only need BLE)
-  ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
-
-  // Initialize BT controller
-  esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
-  esp_err_t ret = esp_bt_controller_init(&bt_cfg);
-  if (ret != ESP_OK) {
-    ESP_LOGE(TAG, "BT controller init failed: %s", esp_err_to_name(ret));
-    this->mark_failed();
-    return;
-  }
-
-  ret = esp_bt_controller_enable(ESP_BT_MODE_BLE);
-  if (ret != ESP_OK) {
-    ESP_LOGE(TAG, "BT controller enable failed: %s", esp_err_to_name(ret));
-    this->mark_failed();
-    return;
-  }
-
-  // Initialize NimBLE port
-  ret = nimble_port_init();
-  if (ret != ESP_OK) {
-    ESP_LOGE(TAG, "NimBLE port init failed: %s", esp_err_to_name(ret));
-    this->mark_failed();
-    return;
-  }
-
-  // Configure NimBLE host
-  ble_hs_cfg.sync_cb = nimble_on_sync_;
-  ble_hs_cfg.reset_cb = nimble_on_reset_;
-
-  // Start NimBLE host task
-  nimble_port_freertos_init(nimble_host_task_);
-
-  this->nimble_initialized_ = true;
-  ESP_LOGI(TAG, "NimBLE receiver initialized");
+  // Defer actual BLE initialization to loop() to ensure all other components are ready
+  this->nimble_initialized_ = false;
+  this->init_attempted_ = false;
+  ESP_LOGI(TAG, "BTHome Receiver configured, BLE init deferred to loop");
 #else
   // Bluedroid setup is handled by esp32_ble_tracker
   ESP_LOGI(TAG, "Bluedroid receiver initialized");
 #endif
 }
+
+#ifdef USE_BTHOME_RECEIVER_NIMBLE
+// Static semaphore for waiting on NimBLE sync
+static SemaphoreHandle_t nimble_sync_semaphore_ = nullptr;
+
+void BTHomeReceiverHub::init_nimble_() {
+  ESP_LOGI(TAG, "Initializing NimBLE...");
+
+  // Create semaphore to wait for host-controller sync
+  nimble_sync_semaphore_ = xSemaphoreCreateBinary();
+  if (nimble_sync_semaphore_ == nullptr) {
+    ESP_LOGE(TAG, "Failed to create sync semaphore");
+    this->mark_failed();
+    return;
+  }
+
+  // For ESP-IDF 5.0+, nimble_port_init() handles BT controller init internally
+  // Just call it directly - no manual esp_bt_controller_init/enable needed
+  esp_err_t ret = nimble_port_init();
+  if (ret != ESP_OK) {
+    ESP_LOGE(TAG, "nimble_port_init failed: %s", esp_err_to_name(ret));
+    vSemaphoreDelete(nimble_sync_semaphore_);
+    nimble_sync_semaphore_ = nullptr;
+    this->mark_failed();
+    return;
+  }
+
+  ESP_LOGI(TAG, "NimBLE port initialized, configuring host");
+
+  // Configure NimBLE host callbacks
+  ble_hs_cfg.reset_cb = nimble_on_reset_;
+  ble_hs_cfg.sync_cb = nimble_on_sync_;
+
+  // Start NimBLE host task
+  nimble_port_freertos_init(nimble_host_task_);
+
+  // Wait for host-controller sync (with timeout)
+  ESP_LOGI(TAG, "Waiting for NimBLE host sync...");
+  if (xSemaphoreTake(nimble_sync_semaphore_, pdMS_TO_TICKS(5000)) != pdTRUE) {
+    ESP_LOGE(TAG, "Timeout waiting for NimBLE sync");
+    vSemaphoreDelete(nimble_sync_semaphore_);
+    nimble_sync_semaphore_ = nullptr;
+    this->mark_failed();
+    return;
+  }
+
+  // Cleanup semaphore
+  vSemaphoreDelete(nimble_sync_semaphore_);
+  nimble_sync_semaphore_ = nullptr;
+
+  this->nimble_initialized_ = true;
+  ESP_LOGI(TAG, "NimBLE receiver initialized successfully");
+}
+#endif
 
 void BTHomeReceiverHub::dump_config() {
   ESP_LOGCONFIG(TAG, "BTHome Receiver:");
@@ -442,8 +463,18 @@ void BTHomeReceiverHub::dump_advertisement_(uint64_t address, const uint8_t *dat
 }
 
 void BTHomeReceiverHub::loop() {
-  // No-op for Bluedroid (esp32_ble_tracker handles everything)
-  // No-op for NimBLE (scanning runs in NimBLE host task)
+#ifdef USE_BTHOME_RECEIVER_NIMBLE
+  // Deferred NimBLE initialization - wait for other components to be ready
+  if (!this->nimble_initialized_ && !this->init_attempted_) {
+    // Wait a bit after boot before initializing BLE (use ESP-IDF timer)
+    static int64_t boot_time = esp_timer_get_time();
+    if ((esp_timer_get_time() - boot_time) > 2000000) {  // 2 second delay (microseconds)
+      this->init_attempted_ = true;
+      this->init_nimble_();
+    }
+  }
+#endif
+  // Once initialized, scanning runs in NimBLE host task (no polling needed)
 }
 
 void BTHomeReceiverHub::register_device(BTHomeDevice *device) {
@@ -464,7 +495,14 @@ void BTHomeReceiverHub::nimble_host_task_(void *param) {
 }
 
 void BTHomeReceiverHub::nimble_on_sync_() {
-  ESP_LOGI(TAG, "NimBLE host synchronized");
+  ESP_LOGI(TAG, "NimBLE host-controller synchronized");
+
+  // Signal that sync is complete
+  if (nimble_sync_semaphore_ != nullptr) {
+    xSemaphoreGive(nimble_sync_semaphore_);
+  }
+
+  // Start scanning
   if (instance_ != nullptr) {
     instance_->start_scanning_();
   }

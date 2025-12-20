@@ -54,14 +54,15 @@ void EpdiyEpaper::update() {
   }
 
   // Clear framebuffer to white
-  memset(this->framebuffer_, 0xFF, this->width_ / 2 * this->height_);
+  memset(this->framebuffer_, 0x00, this->width_ / 2 * this->height_);
 
-  // Call the lambda to draw
+  // Draw content
   this->do_update_();
 
-  // Update the display
   epd_poweron();
 
+  // Use MODE_GC16 for proper grayscale clearing - handles ghosting internally
+  // The HL API tracks previous frame and applies correct waveform for transition
   enum EpdDrawError err = epd_hl_update_screen(&this->hl_state_, MODE_GC16, 25);
   if (err != EPD_DRAW_SUCCESS) {
     ESP_LOGW(TAG, "Display update failed with error: %d", err);
@@ -86,9 +87,10 @@ void EpdiyEpaper::draw_absolute_pixel_internal(int x, int y, Color color) {
     gray = (uint8_t)(0.299f * color.r + 0.587f * color.g + 0.114f * color.b);
   }
 
-  // epdiy uses 4-bit grayscale (16 levels), packed 2 pixels per byte
-  // Higher value = lighter (white = 0xF, black = 0x0)
-  uint8_t gray_4bit = gray >> 4;  // Convert 8-bit to 4-bit
+  // Sharp threshold for crisp text on e-paper
+  // Anything darker than ~60% gray becomes full black, rest is white
+  // This eliminates antialiasing blur on small text
+  uint8_t gray_4bit = (gray < 160) ? 0x0F : 0x00;
 
   int idx = y * (this->width_ / 2) + x / 2;
   if (x % 2 == 0) {

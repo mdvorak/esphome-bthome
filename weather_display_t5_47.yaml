@@ -12,6 +12,11 @@ substitutions:
 esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
+  on_boot:
+    priority: -100  # Run after everything else
+    then:
+      - delay: 2s
+      - logger.log: "Boot complete, BLE should be ready"
 
 # Import reusable packages
 packages:
@@ -28,12 +33,8 @@ wifi:
   power_save_mode: LIGHT
   ap: {}
 
-api:
-
 ota:
 - platform: esphome
-
-captive_portal:
 
 time:
 - platform: sntp
@@ -42,9 +43,51 @@ time:
   on_time_sync:
   - component.update: epaper
 
-# Refresh display periodically and on button press
+# Historical graphs for sensor data (24h history)
+graph:
+- id: graph_temp
+  sensor: outdoor_temp
+  duration: 24h
+  width: 220
+  height: 170
+  x_grid: 6h
+  y_grid: 10
+  min_value: -10
+  max_value: 40
+
+- id: graph_humidity
+  sensor: outdoor_humidity
+  duration: 24h
+  width: 220
+  height: 170
+  x_grid: 6h
+  y_grid: 25
+  min_value: 0
+  max_value: 100
+
+- id: graph_wind
+  sensor: wind_speed
+  duration: 24h
+  width: 220
+  height: 170
+  x_grid: 6h
+  y_grid: 5
+  min_value: 0
+  max_value: 20
+
+- id: graph_rain
+  sensor: rain
+  duration: 24h
+  width: 220
+  height: 170
+  x_grid: 6h
+  y_grid: 10
+  min_value: 0
+  max_value: 50
+
+# Refresh display every minute to prevent degradation
 interval:
-- interval: 5min
+- interval: 1min
   then:
   - component.update: epaper
 
@@ -92,115 +135,88 @@ sensor:
     name: "Solar Power"
     id: solar_power
 
-# Wind gusts - BTHome doesn't have dedicated type
-# Option 1: Use a second speed measurement with index
-# Option 2: Receive from Home Assistant
-- platform: homeassistant
-  entity_id: sensor.weather_station_wind_gusts
+# Wind gusts placeholder (TODO: add sensor index support to bthome_receiver)
+- platform: template
   id: wind_gusts
-  internal: true
+  name: "Wind Gusts"
+  unit_of_measurement: "m/s"
+  accuracy_decimals: 1
 
-# Extend display with weather layout
+# Extend display with weather layout - compass style
 display:
 - id: !extend epaper
   lambda: |-
-    // Screen: 960x540 (landscape after 270° rotation)
+    // Screen: 960x540
     #define W 960
     #define H 540
-    #define M 20
-    #define COL_W ((W - M * 3) / 2)
-    #define ROW_H 120
+    #define M 15
 
-    // Helper to draw a sensor card
-    auto draw_card = [&](int x, int y, int w, int h, const char* icon,
-                         const char* label, float value, const char* unit, bool valid) {
-      // Icon
-      it.printf(x + 10, y + h/2, id(icon_weather), TextAlign::CENTER_LEFT, icon);
+    // MDI icon codepoints
+    #define ICON_THERMOMETER "\U000F050F"
+    #define ICON_HUMIDITY "\U000F058E"
+    #define ICON_RAIN "\U000F0597"
+    #define ICON_SOLAR "\U000F05A8"
 
-      // Label
-      it.print(x + 90, y + 10, id(font_label), TextAlign::TOP_LEFT, label);
+    // === HEADER: Location + Date/Time ===
+    it.print(M, 8, id(font_label), TextAlign::TOP_LEFT, "Weather Station");
+    it.strftime(W - M, 8, id(font_label), TextAlign::TOP_RIGHT, "%a, %d %b %Y @ %H:%M", id(ntp_time).now());
 
-      // Value
-      if (valid && !std::isnan(value)) {
-        it.printf(x + 90, y + 35, id(font_value), TextAlign::TOP_LEFT, "%.1f", value);
-        it.print(x + w - 10, y + h - 15, id(font_unit), TextAlign::BOTTOM_RIGHT, unit);
-      } else {
-        it.print(x + 90, y + 35, id(font_value), TextAlign::TOP_LEFT, "--");
-        it.print(x + w - 10, y + h - 15, id(font_unit), TextAlign::BOTTOM_RIGHT, unit);
-      }
+    // === WIND COMPASS (left side) ===
+    int cx = 130;  // compass center x
+    int cy = 175;  // compass center y
+    int r = 100;   // compass radius
 
-      // Border
-      it.rectangle(x, y, w, h);
-    };
+    // Draw compass circle
+    it.circle(cx, cy, r);
+    it.circle(cx, cy, r - 2);
 
-    int y = M;
+    // Draw cardinal directions
+    it.print(cx, cy - r + 15, id(font_label), TextAlign::TOP_CENTER, "N");
+    it.print(cx, cy + r - 15, id(font_label), TextAlign::BOTTOM_CENTER, "S");
+    it.print(cx - r + 15, cy, id(font_label), TextAlign::CENTER_LEFT, "W");
+    it.print(cx + r - 15, cy, id(font_label), TextAlign::CENTER_RIGHT, "E");
 
-    // Title bar
-    it.strftime(W/2, y, id(font_title), TextAlign::TOP_CENTER, "%A, %B %d", id(ntp_time).now());
-    y += 50;
+    // Intercardinal
+    int ic_off = (r - 20) * 0.707;  // 45 degree offset
+    it.print(cx + ic_off, cy - ic_off, id(font_footer), TextAlign::CENTER, "NE");
+    it.print(cx + ic_off, cy + ic_off, id(font_footer), TextAlign::CENTER, "SE");
+    it.print(cx - ic_off, cy + ic_off, id(font_footer), TextAlign::CENTER, "SW");
+    it.print(cx - ic_off, cy - ic_off, id(font_footer), TextAlign::CENTER, "NW");
 
-    // Divider
-    it.line(M, y, W - M, y);
-    y += M;
-
-    // Row 1: Temperature & Humidity
-    draw_card(M, y, COL_W, ROW_H,
-              "\U0000e430", "Temperature",
-              id(outdoor_temp).state, "°C", id(outdoor_temp).has_state());
-
-    draw_card(M + COL_W + M, y, COL_W, ROW_H,
-              "\U0000e798", "Humidity",
-              id(outdoor_humidity).state, "%", id(outdoor_humidity).has_state());
-    y += ROW_H + M;
-
-    // Row 2: Rain & Solar
-    draw_card(M, y, COL_W, ROW_H,
-              "\U0000f176", "Rain",
-              id(rain).state, "mm", id(rain).has_state());
-
-    draw_card(M + COL_W + M, y, COL_W, ROW_H,
-              "\U0000e518", "Solar Power",
-              id(solar_power).state, "W", id(solar_power).has_state());
-    y += ROW_H + M;
-
-    // Row 3: Wind (speed, gusts, direction) - full width
-    int wind_y = y;
-    int wind_h = ROW_H + 30;
-    int wind_w = W - M * 2;
-
-    // Wind card border
-    it.rectangle(M, wind_y, wind_w, wind_h);
-
-    // Wind icon
-    it.printf(M + 10, wind_y + wind_h/2, id(icon_weather), TextAlign::CENTER_LEFT, "\U0000e1e0");
-    it.print(M + 90, wind_y + 5, id(font_label), TextAlign::TOP_LEFT, "Wind");
-
-    // Three columns for wind data
-    int col_start = M + 90;
-    int col_w = (wind_w - 100) / 3;
-
-    // Speed
-    it.print(col_start, wind_y + 35, id(font_label), TextAlign::TOP_LEFT, "Speed");
-    if (id(wind_speed).has_state() && !std::isnan(id(wind_speed).state)) {
-      it.printf(col_start, wind_y + 60, id(font_value), TextAlign::TOP_LEFT, "%.1f", id(wind_speed).state);
-      it.print(col_start, wind_y + wind_h - 10, id(font_unit), TextAlign::BOTTOM_LEFT, "m/s");
-    } else {
-      it.print(col_start, wind_y + 60, id(font_value), TextAlign::TOP_LEFT, "--");
+    // Draw tick marks
+    for (int i = 0; i < 360; i += 30) {
+      float rad = i * M_PI / 180.0;
+      int x1 = cx + (r - 8) * sin(rad);
+      int y1 = cy - (r - 8) * cos(rad);
+      int x2 = cx + r * sin(rad);
+      int y2 = cy - r * cos(rad);
+      it.line(x1, y1, x2, y2);
     }
 
-    // Gusts
-    it.print(col_start + col_w, wind_y + 35, id(font_label), TextAlign::TOP_LEFT, "Gusts");
-    if (id(wind_gusts).has_state() && !std::isnan(id(wind_gusts).state)) {
-      it.printf(col_start + col_w, wind_y + 60, id(font_value), TextAlign::TOP_LEFT, "%.1f", id(wind_gusts).state);
-      it.print(col_start + col_w, wind_y + wind_h - 10, id(font_unit), TextAlign::BOTTOM_LEFT, "m/s");
-    } else {
-      it.print(col_start + col_w, wind_y + 60, id(font_value), TextAlign::TOP_LEFT, "--");
-    }
-
-    // Direction
-    it.print(col_start + col_w * 2, wind_y + 35, id(font_label), TextAlign::TOP_LEFT, "Direction");
+    // Wind direction arrow
     if (id(wind_direction).has_state() && !std::isnan(id(wind_direction).state)) {
       float dir = id(wind_direction).state;
+      float rad = dir * M_PI / 180.0;
+
+      // Arrow pointing in wind direction
+      int arrow_len = r - 25;
+      int ax = cx + arrow_len * sin(rad);
+      int ay = cy - arrow_len * cos(rad);
+
+      // Draw arrow line
+      it.line(cx, cy, ax, ay);
+
+      // Arrow head
+      float head_angle = 25 * M_PI / 180.0;
+      int head_len = 15;
+      int hx1 = ax - head_len * sin(rad - head_angle);
+      int hy1 = ay + head_len * cos(rad - head_angle);
+      int hx2 = ax - head_len * sin(rad + head_angle);
+      int hy2 = ay + head_len * cos(rad + head_angle);
+      it.line(ax, ay, hx1, hy1);
+      it.line(ax, ay, hx2, hy2);
+
+      // Direction text in center
       const char* dir_str = "N";
       if (dir >= 337.5 || dir < 22.5) dir_str = "N";
       else if (dir < 67.5) dir_str = "NE";
@@ -210,24 +226,111 @@ display:
       else if (dir < 247.5) dir_str = "SW";
       else if (dir < 292.5) dir_str = "W";
       else dir_str = "NW";
-      it.printf(col_start + col_w * 2, wind_y + 60, id(font_value), TextAlign::TOP_LEFT, "%s", dir_str);
-      it.printf(col_start + col_w * 2, wind_y + wind_h - 10, id(font_unit), TextAlign::BOTTOM_LEFT, "%.0f°", dir);
-    } else {
-      it.print(col_start + col_w * 2, wind_y + 60, id(font_value), TextAlign::TOP_LEFT, "--");
+      it.printf(cx, cy - 25, id(font_label), TextAlign::CENTER, "%s", dir_str);
+      it.printf(cx, cy + 35, id(font_footer), TextAlign::CENTER, "%.0f°", dir);
     }
 
-    // Footer
-    it.line(M, H - 45, W - M, H - 45);
-    it.strftime(M, H - 10, id(font_footer), TextAlign::BASELINE_LEFT,
-                "Updated: %H:%M:%S", id(ntp_time).now());
+    // Wind speed in compass center
+    if (id(wind_speed).has_state() && !std::isnan(id(wind_speed).state)) {
+      it.printf(cx, cy + 5, id(font_title), TextAlign::CENTER, "%.1f", id(wind_speed).state);
+      it.print(cx, cy + 55, id(font_footer), TextAlign::CENTER, "m/s");
+    } else {
+      it.print(cx, cy + 5, id(font_title), TextAlign::CENTER, "--");
+    }
 
-    // Battery status
+    // === MAIN READINGS (center-right) ===
+    int main_x = 280;
+    int main_y = 60;
+
+    // Large Temperature
+    it.print(main_x, main_y, id(icon_mdi), TextAlign::TOP_LEFT, ICON_THERMOMETER);
+    if (id(outdoor_temp).has_state() && !std::isnan(id(outdoor_temp).state)) {
+      it.printf(main_x + 60, main_y - 10, id(font_value), TextAlign::TOP_LEFT, "%.1f°C", id(outdoor_temp).state);
+    } else {
+      it.print(main_x + 60, main_y - 10, id(font_value), TextAlign::TOP_LEFT, "--°C");
+    }
+
+    // Large Humidity next to temp
+    it.print(main_x + 250, main_y, id(icon_mdi), TextAlign::TOP_LEFT, ICON_HUMIDITY);
+    if (id(outdoor_humidity).has_state() && !std::isnan(id(outdoor_humidity).state)) {
+      it.printf(main_x + 310, main_y - 10, id(font_value), TextAlign::TOP_LEFT, "%.0f%%", id(outdoor_humidity).state);
+    } else {
+      it.print(main_x + 310, main_y - 10, id(font_value), TextAlign::TOP_LEFT, "--%");
+    }
+
+    // === SECONDARY READINGS ROW ===
+    int sec_y = main_y + 80;
+
+    // Rain
+    it.print(main_x, sec_y, id(icon_mdi), TextAlign::TOP_LEFT, ICON_RAIN);
+    it.print(main_x + 55, sec_y + 5, id(font_label), TextAlign::TOP_LEFT, "Rain");
+    if (id(rain).has_state() && !std::isnan(id(rain).state)) {
+      it.printf(main_x + 55, sec_y + 30, id(font_unit), TextAlign::TOP_LEFT, "%.1f mm", id(rain).state);
+    } else {
+      it.print(main_x + 55, sec_y + 30, id(font_unit), TextAlign::TOP_LEFT, "-- mm");
+    }
+
+    // Solar
+    it.print(main_x + 180, sec_y, id(icon_mdi), TextAlign::TOP_LEFT, ICON_SOLAR);
+    it.print(main_x + 235, sec_y + 5, id(font_label), TextAlign::TOP_LEFT, "Solar");
+    if (id(solar_power).has_state() && !std::isnan(id(solar_power).state)) {
+      it.printf(main_x + 235, sec_y + 30, id(font_unit), TextAlign::TOP_LEFT, "%.0f W", id(solar_power).state);
+    } else {
+      it.print(main_x + 235, sec_y + 30, id(font_unit), TextAlign::TOP_LEFT, "-- W");
+    }
+
+    // Wind Gusts
+    it.print(main_x + 360, sec_y + 5, id(font_label), TextAlign::TOP_LEFT, "Gusts");
+    if (id(wind_gusts).has_state() && !std::isnan(id(wind_gusts).state)) {
+      it.printf(main_x + 360, sec_y + 30, id(font_unit), TextAlign::TOP_LEFT, "%.1f m/s", id(wind_gusts).state);
+    } else {
+      it.print(main_x + 360, sec_y + 30, id(font_unit), TextAlign::TOP_LEFT, "-- m/s");
+    }
+
+    // === LINE GRAPHS AREA (bottom) - 24h history ===
+    int graph_y = 310;
+    int graph_h = 170;
+    int graph_w = 220;
+    int graph_spacing = (W - 4 * graph_w) / 5;
+
+    // Temperature graph
+    int gx = graph_spacing;
+    it.print(gx, graph_y - 25, id(font_footer), TextAlign::TOP_LEFT, "Temperature (°C)");
+    it.rectangle(gx - 2, graph_y - 2, graph_w + 4, graph_h + 4);
+    it.graph(gx, graph_y, id(graph_temp));
+
+    // Humidity graph
+    gx += graph_w + graph_spacing;
+    it.print(gx, graph_y - 25, id(font_footer), TextAlign::TOP_LEFT, "Humidity (%)");
+    it.rectangle(gx - 2, graph_y - 2, graph_w + 4, graph_h + 4);
+    it.graph(gx, graph_y, id(graph_humidity));
+
+    // Wind graph
+    gx += graph_w + graph_spacing;
+    it.print(gx, graph_y - 25, id(font_footer), TextAlign::TOP_LEFT, "Wind (m/s)");
+    it.rectangle(gx - 2, graph_y - 2, graph_w + 4, graph_h + 4);
+    it.graph(gx, graph_y, id(graph_wind));
+
+    // Rain graph
+    gx += graph_w + graph_spacing;
+    it.print(gx, graph_y - 25, id(font_footer), TextAlign::TOP_LEFT, "Rain (mm)");
+    it.rectangle(gx - 2, graph_y - 2, graph_w + 4, graph_h + 4);
+    it.graph(gx, graph_y, id(graph_rain));
+
+    // === FOOTER ===
+    it.line(M, H - 30, W - M, H - 30);
+    it.strftime(M, H - 5, id(font_footer), TextAlign::BASELINE_LEFT, "Last update: %H:%M:%S", id(ntp_time).now());
+
+    // Battery indicator in footer (right side)
     float batt = id(battery_percent).state;
     if (!std::isnan(batt)) {
-      const char* batt_icon = (batt < 20) ? "\U0000e1a4" : "\U0000e1a3";
-      it.printf(W - M - 100, H - 10, id(font_footer), TextAlign::BASELINE_LEFT,
-                "%.0f%%", batt);
-      it.print(W - M, H - 5, id(font_footer), TextAlign::BASELINE_RIGHT, batt_icon);
+      int batt_x = W - M - 80;
+      int batt_y = H - 20;
+      it.rectangle(batt_x, batt_y, 30, 12);
+      it.filled_rectangle(batt_x + 30, batt_y + 3, 3, 6);
+      int fill_w = (int)(26 * batt / 100.0);
+      if (fill_w > 0) it.filled_rectangle(batt_x + 2, batt_y + 2, fill_w, 8);
+      it.printf(batt_x + 40, batt_y + 6, id(font_footer), TextAlign::CENTER_LEFT, "%.0f%%", batt);
     }
 
 button:

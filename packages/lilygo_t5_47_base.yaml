@@ -20,8 +20,23 @@ esp32:
       CONFIG_SPIRAM_SPEED_80M: y
       CONFIG_SPIRAM_BOOT_INIT: y
       CONFIG_SPIRAM_USE_CAPS_ALLOC: y
-      # Use NimBLE (lighter weight BLE stack)
+      CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL: "4096"
+      # NimBLE configuration - lightweight BLE stack
+      CONFIG_BT_ENABLED: y
+      CONFIG_BTDM_CTRL_MODE_BLE_ONLY: y
+      CONFIG_BT_BLUEDROID_ENABLED: n
       CONFIG_BT_NIMBLE_ENABLED: y
+      # Allocate NimBLE memory from PSRAM to save internal RAM for epdiy
+      CONFIG_BT_NIMBLE_MEM_ALLOC_MODE_EXTERNAL: y
+      # Pin BT controller to core 0 (epdiy uses I2S on core 0, but controller can share)
+      CONFIG_BTDM_CTRL_PINNED_TO_CORE_0: y
+      # Reduce memory footprint
+      CONFIG_BT_NIMBLE_MAX_CONNECTIONS: "0"
+      CONFIG_BT_NIMBLE_MAX_BONDS: "0"
+      CONFIG_BT_NIMBLE_ROLE_CENTRAL: n
+      CONFIG_BT_NIMBLE_ROLE_PERIPHERAL: n
+      CONFIG_BT_NIMBLE_ROLE_BROADCASTER: n
+      CONFIG_BT_NIMBLE_ROLE_OBSERVER: y
       # epdiy board config
       CONFIG_EPD_BOARD_REVISION_LILYGO_T5_47: y
       CONFIG_EPD_DISPLAY_TYPE_ED047TC1: y
