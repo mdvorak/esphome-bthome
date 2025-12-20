@@ -1,0 +1,241 @@
+# BTHome Weather Station Display - Lilygo T5 4.7"
+# Receives BTHome sensor data and displays on e-paper
+#
+# Configure your BTHome sensor MAC addresses below
+
+substitutions:
+  device_name: weather-display
+  friendly_name: Weather Display
+  # BTHome weather station MAC address
+  weather_station_mac: "AA:BB:CC:DD:EE:FF"
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+
+# Import reusable packages
+packages:
+  board: !include packages/lilygo_t5_47_base.yaml
+  fonts: !include packages/fonts_weather.yaml
+  ble_receiver: !include packages/bthome_receiver.yaml
+  widgets: !include packages/display_widgets.yaml
+
+logger:
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  power_save_mode: LIGHT
+  ap: {}
+
+api:
+
+ota:
+- platform: esphome
+
+captive_portal:
+
+time:
+- platform: sntp
+  id: ntp_time
+  timezone: Europe/Ljubljana
+  on_time_sync:
+  - component.update: epaper
+
+# Refresh display periodically and on button press
+interval:
+- interval: 5min
+  then:
+  - component.update: epaper
+
+# Button actions (extend from base package)
+binary_sensor:
+- id: !extend btn_1
+  on_press:
+  - component.update: epaper
+
+- id: !extend btn_2
+  on_press:
+  - logger.log: "Button 2 pressed"
+
+- id: !extend btn_3
+  on_press:
+  - logger.log: "Button 3 pressed"
+
+# All-in-one BTHome weather station
+# Device sends multiple packets updating different sensors
+# ESPHome aggregates all measurements from the same MAC
+sensor:
+- platform: bthome_receiver
+  mac_address: ${weather_station_mac}
+  # Temperature & Humidity
+  temperature:
+    name: "Temperature"
+    id: outdoor_temp
+  humidity:
+    name: "Humidity"
+    id: outdoor_humidity
+  # Rain (precipitation object 0x5F)
+  precipitation:
+    name: "Rain"
+    id: rain
+  # Wind speed (speed object 0x44)
+  speed:
+    name: "Wind Speed"
+    id: wind_speed
+  # Wind direction (direction object 0x5E)
+  direction:
+    name: "Wind Direction"
+    id: wind_direction
+  # Solar power (power object 0x0B)
+  power:
+    name: "Solar Power"
+    id: solar_power
+
+# Wind gusts - BTHome doesn't have dedicated type
+# Option 1: Use a second speed measurement with index
+# Option 2: Receive from Home Assistant
+- platform: homeassistant
+  entity_id: sensor.weather_station_wind_gusts
+  id: wind_gusts
+  internal: true
+
+# Extend display with weather layout
+display:
+- id: !extend epaper
+  lambda: |-
+    // Screen: 960x540 (landscape after 270° rotation)
+    #define W 960
+    #define H 540
+    #define M 20
+    #define COL_W ((W - M * 3) / 2)
+    #define ROW_H 120
+
+    // Helper to draw a sensor card
+    auto draw_card = [&](int x, int y, int w, int h, const char* icon,
+                         const char* label, float value, const char* unit, bool valid) {
+      // Icon
+      it.printf(x + 10, y + h/2, id(icon_weather), TextAlign::CENTER_LEFT, icon);
+
+      // Label
+      it.print(x + 90, y + 10, id(font_label), TextAlign::TOP_LEFT, label);
+
+      // Value
+      if (valid && !std::isnan(value)) {
+        it.printf(x + 90, y + 35, id(font_value), TextAlign::TOP_LEFT, "%.1f", value);
+        it.print(x + w - 10, y + h - 15, id(font_unit), TextAlign::BOTTOM_RIGHT, unit);
+      } else {
+        it.print(x + 90, y + 35, id(font_value), TextAlign::TOP_LEFT, "--");
+        it.print(x + w - 10, y + h - 15, id(font_unit), TextAlign::BOTTOM_RIGHT, unit);
+      }
+
+      // Border
+      it.rectangle(x, y, w, h);
+    };
+
+    int y = M;
+
+    // Title bar
+    it.strftime(W/2, y, id(font_title), TextAlign::TOP_CENTER, "%A, %B %d", id(ntp_time).now());
+    y += 50;
+
+    // Divider
+    it.line(M, y, W - M, y);
+    y += M;
+
+    // Row 1: Temperature & Humidity
+    draw_card(M, y, COL_W, ROW_H,
+              "\U0000e430", "Temperature",
+              id(outdoor_temp).state, "°C", id(outdoor_temp).has_state());
+
+    draw_card(M + COL_W + M, y, COL_W, ROW_H,
+              "\U0000e798", "Humidity",
+              id(outdoor_humidity).state, "%", id(outdoor_humidity).has_state());
+    y += ROW_H + M;
+
+    // Row 2: Rain & Solar
+    draw_card(M, y, COL_W, ROW_H,
+              "\U0000f176", "Rain",
+              id(rain).state, "mm", id(rain).has_state());
+
+    draw_card(M + COL_W + M, y, COL_W, ROW_H,
+              "\U0000e518", "Solar Power",
+              id(solar_power).state, "W", id(solar_power).has_state());
+    y += ROW_H + M;
+
+    // Row 3: Wind (speed, gusts, direction) - full width
+    int wind_y = y;
+    int wind_h = ROW_H + 30;
+    int wind_w = W - M * 2;
+
+    // Wind card border
+    it.rectangle(M, wind_y, wind_w, wind_h);
+
+    // Wind icon
+    it.printf(M + 10, wind_y + wind_h/2, id(icon_weather), TextAlign::CENTER_LEFT, "\U0000e1e0");
+    it.print(M + 90, wind_y + 5, id(font_label), TextAlign::TOP_LEFT, "Wind");
+
+    // Three columns for wind data
+    int col_start = M + 90;
+    int col_w = (wind_w - 100) / 3;
+
+    // Speed
+    it.print(col_start, wind_y + 35, id(font_label), TextAlign::TOP_LEFT, "Speed");
+    if (id(wind_speed).has_state() && !std::isnan(id(wind_speed).state)) {
+      it.printf(col_start, wind_y + 60, id(font_value), TextAlign::TOP_LEFT, "%.1f", id(wind_speed).state);
+      it.print(col_start, wind_y + wind_h - 10, id(font_unit), TextAlign::BOTTOM_LEFT, "m/s");
+    } else {
+      it.print(col_start, wind_y + 60, id(font_value), TextAlign::TOP_LEFT, "--");
+    }
+
+    // Gusts
+    it.print(col_start + col_w, wind_y + 35, id(font_label), TextAlign::TOP_LEFT, "Gusts");
+    if (id(wind_gusts).has_state() && !std::isnan(id(wind_gusts).state)) {
+      it.printf(col_start + col_w, wind_y + 60, id(font_value), TextAlign::TOP_LEFT, "%.1f", id(wind_gusts).state);
+      it.print(col_start + col_w, wind_y + wind_h - 10, id(font_unit), TextAlign::BOTTOM_LEFT, "m/s");
+    } else {
+      it.print(col_start + col_w, wind_y + 60, id(font_value), TextAlign::TOP_LEFT, "--");
+    }
+
+    // Direction
+    it.print(col_start + col_w * 2, wind_y + 35, id(font_label), TextAlign::TOP_LEFT, "Direction");
+    if (id(wind_direction).has_state() && !std::isnan(id(wind_direction).state)) {
+      float dir = id(wind_direction).state;
+      const char* dir_str = "N";
+      if (dir >= 337.5 || dir < 22.5) dir_str = "N";
+      else if (dir < 67.5) dir_str = "NE";
+      else if (dir < 112.5) dir_str = "E";
+      else if (dir < 157.5) dir_str = "SE";
+      else if (dir < 202.5) dir_str = "S";
+      else if (dir < 247.5) dir_str = "SW";
+      else if (dir < 292.5) dir_str = "W";
+      else dir_str = "NW";
+      it.printf(col_start + col_w * 2, wind_y + 60, id(font_value), TextAlign::TOP_LEFT, "%s", dir_str);
+      it.printf(col_start + col_w * 2, wind_y + wind_h - 10, id(font_unit), TextAlign::BOTTOM_LEFT, "%.0f°", dir);
+    } else {
+      it.print(col_start + col_w * 2, wind_y + 60, id(font_value), TextAlign::TOP_LEFT, "--");
+    }
+
+    // Footer
+    it.line(M, H - 45, W - M, H - 45);
+    it.strftime(M, H - 10, id(font_footer), TextAlign::BASELINE_LEFT,
+                "Updated: %H:%M:%S", id(ntp_time).now());
+
+    // Battery status
+    float batt = id(battery_percent).state;
+    if (!std::isnan(batt)) {
+      const char* batt_icon = (batt < 20) ? "\U0000e1a4" : "\U0000e1a3";
+      it.printf(W - M - 100, H - 10, id(font_footer), TextAlign::BASELINE_LEFT,
+                "%.0f%%", batt);
+      it.print(W - M, H - 5, id(font_footer), TextAlign::BASELINE_RIGHT, batt_icon);
+    }
+
+button:
+- platform: restart
+  name: "Restart"
+
+- platform: template
+  name: "Refresh Display"
+  icon: "mdi:refresh"
+  on_press:
+  - component.update: epaper

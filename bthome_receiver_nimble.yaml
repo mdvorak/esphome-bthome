@@ -32,6 +32,10 @@ logger:
 # BTHome Receiver Hub with NimBLE (lightweight, standalone)
 bthome_receiver:
   ble_stack: nimble
+  # Discovery mode: Enable to log all BTHome advertisements for finding devices
+  # This will dump MAC addresses, sensor types, and values to the log
+  # Disable after discovering your devices to reduce log spam
+  dump_advertisements: false
   devices:
     - mac_address: "AA:BB:CC:DD:EE:FF"
       name: "Living Room Sensor"

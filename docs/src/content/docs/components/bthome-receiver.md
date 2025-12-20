@@ -16,6 +16,7 @@ The **BTHome Receiver** component allows your ESP32 to receive and decode BTHome
 - Multiple device support with individual configurations
 - Optional per-device encryption keys
 - **Two BLE stack options**: Bluedroid (default) or NimBLE (lightweight)
+- **Discovery mode**: Log all BTHome advertisements to find devices and debug configurations
 
 ## BLE Stack Selection
 
@@ -74,6 +75,59 @@ Actual measurements from BTHome receiver on ESP32-S3:
 | Compatible with esp32_ble | Yes | No | - |
 | Compatible with bluetooth_proxy | Yes | No | - |
 | Best For | Multi-function BLE | Receive-only gateway | - |
+
+## Discovery Mode
+
+Before configuring specific devices, you can enable **discovery mode** to find all BTHome devices in range and see what data they're broadcasting. This is useful for:
+
+- Finding MAC addresses of new devices
+- Identifying what sensor types a device broadcasts
+- Debugging encrypted devices (shows if encryption is enabled)
+- Getting ready-to-use YAML configuration snippets
+
+### Enabling Discovery Mode
+
+```yaml
+bthome_receiver:
+  dump_advertisements: true
+```
+
+### Log Output
+
+When enabled, all BTHome advertisements are logged with parsed sensor data:
+
+```
+[DUMP] ========================================
+[DUMP] MAC: A4:C1:38:12:34:56
+[DUMP] Encrypted: no
+[DUMP] Raw data (8 bytes): 40 02 4E 0C 03 B4 08 01
+[DUMP] Measurements:
+[DUMP]   - temperature (0x02): 31.82 (raw: 3182)
+[DUMP]   - humidity (0x03): 22.28 (raw: 2228)
+[DUMP]   - battery (0x01): 100 (raw: 100)
+[DUMP] ----------------------------------------
+[DUMP] Example YAML config:
+[DUMP]   bthome_receiver:
+[DUMP]     devices:
+[DUMP]       - mac_address: "A4:C1:38:12:34:56"
+[DUMP]         name: "My Device"
+[DUMP] ----------------------------------------
+```
+
+For encrypted devices:
+
+```
+[DUMP] ========================================
+[DUMP] MAC: AA:BB:CC:DD:EE:FF
+[DUMP] Encrypted: yes
+[DUMP] Raw data (16 bytes): 41 ...
+[DUMP] Config hint: Device is encrypted, you need the encryption_key
+[DUMP] ----------------------------------------
+```
+
+:::tip[Disable After Discovery]
+Remember to set `dump_advertisements: false` after discovering your devices to reduce log spam and save resources.
+:::
 
 ## Basic Configuration
 
@@ -136,9 +190,11 @@ text_sensor:
 
 ### Hub Configuration
 
-| Option | Type | Required | Description |
-|--------|------|----------|-------------|
-| `devices` | list | No | List of known devices with optional encryption keys |
+| Option | Type | Required | Default | Description |
+|--------|------|----------|---------|-------------|
+| `ble_stack` | string | No | `bluedroid` | BLE stack to use: `bluedroid` or `nimble` |
+| `dump_advertisements` | boolean | No | `false` | Enable discovery mode to log all BTHome advertisements |
+| `devices` | list | No | `[]` | List of known devices with optional encryption keys |
 
 #### Device Entry
 
@@ -413,6 +469,8 @@ esp32_ble_tracker:
 # BTHome Receiver with Bluedroid (default)
 bthome_receiver:
   ble_stack: bluedroid  # Can be omitted, this is the default
+  # Enable to discover devices - disable after configuration
+  dump_advertisements: false
   devices:
     # Encrypted temperature sensor
     - mac_address: "AA:BB:CC:DD:EE:FF"
@@ -470,6 +528,8 @@ captive_portal:
 # Note: Cannot coexist with esp32_ble_tracker or bluetooth_proxy
 bthome_receiver:
   ble_stack: nimble
+  # Enable to discover devices - disable after configuration
+  dump_advertisements: false
   devices:
     # Encrypted temperature sensor
     - mac_address: "AA:BB:CC:DD:EE:FF"
@@ -532,31 +592,36 @@ sensor:
 
 ## Tips and Best Practices
 
-1. **Use encryption** for sensitive data or devices accessible in public areas
-2. **Register devices in the hub** when using event triggers or hub-level encryption
-3. **Monitor battery levels** by including the `battery` sensor for battery-powered devices
-4. **BLE Scanner range** - Keep devices within 10-30 meters depending on environment
-5. **Scan parameters** - Use `active: false` in `esp32_ble_tracker` for better compatibility
-6. **Packet deduplication** - The receiver automatically handles duplicate packets using packet IDs
+1. **Use discovery mode first** - Enable `dump_advertisements: true` to find devices and see their sensor types before configuring
+2. **Use encryption** for sensitive data or devices accessible in public areas
+3. **Register devices in the hub** when using event triggers or hub-level encryption
+4. **Monitor battery levels** by including the `battery` sensor for battery-powered devices
+5. **BLE Scanner range** - Keep devices within 10-30 meters depending on environment
+6. **Scan parameters** - Use `active: false` in `esp32_ble_tracker` for better compatibility
+7. **Packet deduplication** - The receiver automatically handles duplicate packets using packet IDs
+8. **Disable discovery mode** after configuring devices to reduce log output and save resources
 
 ## Troubleshooting
 
 ### Device not discovered
 
-- Verify the MAC address is correct (check with a BLE scanner app)
-- Ensure the device is within BLE range
-- Check that `esp32_ble_tracker` is configured and running
-- Verify the device is broadcasting BTHome v2 advertisements
+- **Enable discovery mode** by setting `dump_advertisements: true` to see all BTHome devices in range
+- Verify the MAC address is correct (check the dump output or use a BLE scanner app)
+- Ensure the device is within BLE range (typically 10-30 meters)
+- For Bluedroid: Check that `esp32_ble_tracker` is configured and running
+- Verify the device is broadcasting BTHome v2 advertisements (UUID 0xFCD2)
 
 ### Encrypted data not decrypted
 
+- Enable `dump_advertisements: true` to confirm the device is encrypted (look for "Encrypted: yes")
 - Verify the encryption key matches the broadcasting device (32 hex characters)
 - Check that the key is correctly formatted (no spaces or dashes)
 - Ensure the device is broadcasting with encryption enabled (device info byte should be 0x41)
 
 ### Missing sensor values
 
-- Verify the sensor type matches what the device is broadcasting
+- Enable `dump_advertisements: true` to see exactly what sensor types the device broadcasts
+- Verify the sensor type name matches what the device is broadcasting (check the object ID)
 - Check the ESPHome logs for decoding errors
 - Ensure the object ID in the advertisement matches the configured sensor type
 

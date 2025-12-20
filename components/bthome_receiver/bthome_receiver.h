@@ -235,7 +235,7 @@ class BTHomeDevice : public Parented<BTHomeReceiverHub> {
 // BTHomeReceiverHub - Main component that receives BLE advertisements
 // =============================================================================
 #ifdef USE_BTHOME_RECEIVER_BLUEDROID
-class BTHomeReceiverHub : public Component, public esp32_ble_tracker::ESPBTDeviceListener {
+class BTHomeReceiverHub : public Component, public esphome::esp32_ble_tracker::ESPBTDeviceListener {
 #else
 class BTHomeReceiverHub : public Component {
 #endif
@@ -248,9 +248,13 @@ class BTHomeReceiverHub : public Component {
   // Register a device to monitor
   void register_device(BTHomeDevice *device);
 
+  // Enable/disable advertisement dumping for discovery
+  void set_dump_advertisements(bool dump) { this->dump_advertisements_ = dump; }
+  bool get_dump_advertisements() const { return this->dump_advertisements_; }
+
 #ifdef USE_BTHOME_RECEIVER_BLUEDROID
   // ESPBTDeviceListener interface - called when BLE advertisement is received
-  bool parse_device(const esp32_ble_tracker::ESPBTDevice &device) override;
+  bool parse_device(const esphome::esp32_ble_tracker::ESPBTDevice &device) override;
 #endif
 
 #ifdef USE_BTHOME_RECEIVER_NIMBLE
@@ -261,6 +265,12 @@ class BTHomeReceiverHub : public Component {
  protected:
   // Device registry (MAC address -> BTHomeDevice)
   std::map<uint64_t, BTHomeDevice *> devices_;
+
+  // Dump all advertisements for discovery mode
+  bool dump_advertisements_{false};
+
+  // Dump an advertisement to the log (for discovery mode)
+  void dump_advertisement_(uint64_t address, const uint8_t *data, size_t len);
 
 #ifdef USE_BTHOME_RECEIVER_NIMBLE
   // NimBLE-specific members

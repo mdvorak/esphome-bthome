@@ -1,0 +1,43 @@
+# Weather Display Fonts Package
+# Reusable font definitions for weather station displays
+
+font:
+  - file: "gfonts://Roboto@500"
+    id: font_title
+    size: 36
+
+  - file: "gfonts://Roboto@400"
+    id: font_value
+    size: 52
+
+  - file: "gfonts://Roboto@400"
+    id: font_label
+    size: 24
+
+  - file: "gfonts://Roboto@300"
+    id: font_footer
+    size: 20
+
+  - file: "gfonts://Roboto@400"
+    id: font_unit
+    size: 28
+
+  # Material Design Icons for weather
+  - file: "gfonts://Material+Symbols+Outlined"
+    id: icon_weather
+    size: 72
+    glyphs:
+      - "\U0000e430" # thermostat
+      - "\U0000e798" # humidity
+      - "\U0000f176" # rainy
+      - "\U0000e1e0" # air (wind)
+      - "\U0000e518" # solar_power
+      - "\U0000e1a3" # battery_full
+      - "\U0000e1a4" # battery_alert
+      - "\U0000ebdc" # update
+      - "\U0000e88e" # home
+      - "\U0000ef44" # wb_sunny
+      - "\U0000e42d" # device_thermostat
+      - "\U0000efd6" # explore (compass/direction)
+      - "\U0000e90e" # storm (gusts)
+      - "\U0000e81a" # navigation (arrow for direction)

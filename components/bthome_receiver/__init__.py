@@ -37,6 +37,7 @@ CONF_ON_BUTTON = "on_button"
 CONF_ON_DIMMER = "on_dimmer"
 CONF_EVENT = "event"
 CONF_BUTTON_INDEX = "button_index"
+CONF_DUMP_ADVERTISEMENTS = "dump_advertisements"
 
 # Define int8_t type (not available in esphome.codegen)
 int8 = cg.global_ns.namespace("int8_t")
@@ -224,6 +225,8 @@ _BASE_SCHEMA = cv.Schema(
         cv.Optional(esp32_ble_tracker.CONF_ESP32_BLE_ID): cv.use_id(
             esp32_ble_tracker.ESP32BLETracker
         ),
+        # Discovery mode: dump all BTHome advertisements to log for configuration
+        cv.Optional(CONF_DUMP_ADVERTISEMENTS, default=False): cv.boolean,
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
@@ -248,6 +251,10 @@ CONFIG_SCHEMA = cv.All(
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
+
+    # Set dump_advertisements mode
+    if config.get(CONF_DUMP_ADVERTISEMENTS, False):
+        cg.add(var.set_dump_advertisements(True))
 
     ble_stack = config.get(CONF_BLE_STACK, BLE_STACK_BLUEDROID)
 
@@ -282,6 +289,9 @@ async def to_code(config):
     else:
         # Bluedroid stack - use esp32_ble_tracker
         cg.add_define("USE_BTHOME_RECEIVER_BLUEDROID")
+        # These defines are needed for ESPBTDevice and ServiceData types
+        cg.add_define("USE_ESP32_BLE_DEVICE")
+        cg.add_define("USE_ESP32_BLE_UUID")
         # Import esp32_ble_tracker only when using Bluedroid
         # pylint: disable=import-outside-toplevel
         from esphome.components import esp32_ble_tracker

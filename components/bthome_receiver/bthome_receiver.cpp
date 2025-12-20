@@ -112,6 +112,101 @@ static const std::map<uint8_t, ObjectTypeInfo> OBJECT_TYPE_MAP = {
     {0x61, {2, false, 1, true, false}},           // rotational_speed
 };
 
+// Object ID to human-readable name mapping (for dump mode)
+static const std::map<uint8_t, const char *> OBJECT_ID_NAMES = {
+    // Sensors
+    {0x00, "packet_id"},
+    {0x01, "battery"},
+    {0x02, "temperature"},
+    {0x03, "humidity"},
+    {0x04, "pressure"},
+    {0x05, "illuminance"},
+    {0x06, "mass_kg"},
+    {0x07, "mass_lb"},
+    {0x08, "dewpoint"},
+    {0x09, "count"},
+    {0x0A, "energy"},
+    {0x0B, "power"},
+    {0x0C, "voltage"},
+    {0x0D, "pm2_5"},
+    {0x0E, "pm10"},
+    {0x12, "co2"},
+    {0x13, "tvoc"},
+    {0x14, "moisture"},
+    {0x2E, "humidity_uint8"},
+    {0x2F, "moisture_uint8"},
+    // Binary sensors
+    {0x0F, "generic_boolean"},
+    {0x10, "power_binary"},
+    {0x11, "opening"},
+    {0x15, "battery_low"},
+    {0x16, "battery_charging"},
+    {0x17, "carbon_monoxide"},
+    {0x18, "cold"},
+    {0x19, "connectivity"},
+    {0x1A, "door"},
+    {0x1B, "garage_door"},
+    {0x1C, "gas"},
+    {0x1D, "heat"},
+    {0x1E, "light"},
+    {0x1F, "lock"},
+    {0x20, "moisture_binary"},
+    {0x21, "motion"},
+    {0x22, "moving"},
+    {0x23, "occupancy"},
+    {0x24, "plug"},
+    {0x25, "presence"},
+    {0x26, "problem"},
+    {0x27, "running"},
+    {0x28, "safety"},
+    {0x29, "smoke"},
+    {0x2A, "sound"},
+    {0x2B, "tamper"},
+    {0x2C, "vibration"},
+    {0x2D, "window"},
+    // Events
+    {0x3A, "button"},
+    {0x3C, "dimmer"},
+    // Extended sensors
+    {0x3D, "count_uint16"},
+    {0x3E, "count_uint32"},
+    {0x3F, "rotation"},
+    {0x40, "distance_mm"},
+    {0x41, "distance_m"},
+    {0x42, "duration"},
+    {0x43, "current"},
+    {0x44, "speed"},
+    {0x45, "temperature_01"},
+    {0x46, "uv_index"},
+    {0x47, "volume_l_01"},
+    {0x48, "volume_ml"},
+    {0x49, "volume_flow_rate"},
+    {0x4A, "voltage_01"},
+    {0x4B, "gas"},
+    {0x4C, "gas_uint32"},
+    {0x4D, "energy_uint32"},
+    {0x4E, "volume_l"},
+    {0x4F, "water"},
+    {0x50, "timestamp"},
+    {0x51, "acceleration"},
+    {0x52, "gyroscope"},
+    {0x53, "text"},
+    {0x54, "raw"},
+    {0x55, "volume_storage"},
+    {0x56, "conductivity"},
+    {0x57, "temperature_sint8"},
+    {0x58, "temperature_sint8_035"},
+    {0x59, "count_sint8"},
+    {0x5A, "count_sint16"},
+    {0x5B, "count_sint32"},
+    {0x5C, "power_sint32"},
+    {0x5D, "current_sint16"},
+    {0x5E, "direction"},
+    {0x5F, "precipitation"},
+    {0x60, "channel"},
+    {0x61, "rotational_speed"},
+};
+
 // ============================================================================
 // BTHomeReceiverHub Implementation
 // ============================================================================
@@ -171,11 +266,179 @@ void BTHomeReceiverHub::dump_config() {
 #else
   ESP_LOGCONFIG(TAG, "  BLE Stack: Bluedroid");
 #endif
+  ESP_LOGCONFIG(TAG, "  Dump Advertisements: %s", this->dump_advertisements_ ? "YES" : "NO");
   ESP_LOGCONFIG(TAG, "  Registered Devices: %d", this->devices_.size());
   for (const auto &pair : this->devices_) {
     auto *device = pair.second;
     ESP_LOGCONFIG(TAG, "    MAC: %012llX", device->get_mac_address());
   }
+}
+
+void BTHomeReceiverHub::dump_advertisement_(uint64_t address, const uint8_t *data, size_t len) {
+  // Format MAC address as AA:BB:CC:DD:EE:FF
+  char mac_str[18];
+  snprintf(mac_str, sizeof(mac_str), "%02X:%02X:%02X:%02X:%02X:%02X",
+           (uint8_t)(address & 0xFF),
+           (uint8_t)((address >> 8) & 0xFF),
+           (uint8_t)((address >> 16) & 0xFF),
+           (uint8_t)((address >> 24) & 0xFF),
+           (uint8_t)((address >> 32) & 0xFF),
+           (uint8_t)((address >> 40) & 0xFF));
+
+  if (len < 1) {
+    ESP_LOGI(TAG, "[DUMP] MAC: %s - Empty advertisement", mac_str);
+    return;
+  }
+
+  // First byte is device_info
+  uint8_t device_info = data[0];
+  bool is_encrypted = (device_info & BTHOME_DEVICE_INFO_ENCRYPTED_MASK) != 0;
+
+  // Build raw hex string for reference
+  std::string raw_hex;
+  for (size_t i = 0; i < len && i < 32; i++) {
+    char hex[4];
+    snprintf(hex, sizeof(hex), "%02X ", data[i]);
+    raw_hex += hex;
+  }
+  if (len > 32) {
+    raw_hex += "...";
+  }
+
+  ESP_LOGI(TAG, "[DUMP] ========================================");
+  ESP_LOGI(TAG, "[DUMP] MAC: %s", mac_str);
+  ESP_LOGI(TAG, "[DUMP] Encrypted: %s", is_encrypted ? "yes" : "no");
+  ESP_LOGI(TAG, "[DUMP] Raw data (%d bytes): %s", len, raw_hex.c_str());
+
+  if (is_encrypted) {
+    // For encrypted devices, just show the MAC and note it needs a key
+    ESP_LOGI(TAG, "[DUMP] Config hint: Device is encrypted, you need the encryption_key");
+    ESP_LOGI(TAG, "[DUMP] ----------------------------------------");
+    return;
+  }
+
+  // Parse and display unencrypted measurements
+  ESP_LOGI(TAG, "[DUMP] Measurements:");
+  size_t pos = 1;  // Skip device_info
+
+  while (pos < len) {
+    if (pos + 1 > len) break;
+
+    uint8_t object_id = data[pos++];
+
+    // Get human-readable name
+    const char *name = "unknown";
+    auto name_it = OBJECT_ID_NAMES.find(object_id);
+    if (name_it != OBJECT_ID_NAMES.end()) {
+      name = name_it->second;
+    }
+
+    // Handle special types
+    if (object_id == OBJECT_ID_BUTTON) {
+      if (pos + 1 > len) break;
+      uint8_t event_data = data[pos++];
+      uint8_t button_index = (event_data >> 4) & 0x0F;
+      uint8_t event_type = event_data & 0x0F;
+      ESP_LOGI(TAG, "[DUMP]   - button (0x%02X): index=%d, event=0x%02X", object_id, button_index, event_type);
+      continue;
+    }
+
+    if (object_id == OBJECT_ID_DIMMER) {
+      if (pos + 1 > len) break;
+      int8_t steps = static_cast<int8_t>(data[pos++]);
+      ESP_LOGI(TAG, "[DUMP]   - dimmer (0x%02X): steps=%d", object_id, steps);
+      continue;
+    }
+
+    if (object_id == OBJECT_ID_TEXT || object_id == OBJECT_ID_RAW) {
+      if (pos + 1 > len) break;
+      uint8_t str_len = data[pos++];
+      if (pos + str_len > len) break;
+      if (object_id == OBJECT_ID_TEXT) {
+        std::string text(reinterpret_cast<const char *>(data + pos), str_len);
+        ESP_LOGI(TAG, "[DUMP]   - text (0x%02X): '%s'", object_id, text.c_str());
+      } else {
+        std::string hex_str;
+        for (uint8_t i = 0; i < str_len; i++) {
+          char hex[3];
+          snprintf(hex, sizeof(hex), "%02X", data[pos + i]);
+          if (i > 0) hex_str += " ";
+          hex_str += hex;
+        }
+        ESP_LOGI(TAG, "[DUMP]   - raw (0x%02X): %s", object_id, hex_str.c_str());
+      }
+      pos += str_len;
+      continue;
+    }
+
+    // Look up standard object type
+    auto it = OBJECT_TYPE_MAP.find(object_id);
+    if (it == OBJECT_TYPE_MAP.end()) {
+      ESP_LOGI(TAG, "[DUMP]   - unknown (0x%02X): <cannot parse, stopping>", object_id);
+      break;
+    }
+
+    const ObjectTypeInfo &type_info = it->second;
+
+    if (pos + type_info.data_bytes > len) {
+      ESP_LOGI(TAG, "[DUMP]   - %s (0x%02X): <incomplete data>", name, object_id);
+      break;
+    }
+
+    // Decode value
+    if (type_info.is_binary_sensor) {
+      bool value = data[pos] != 0;
+      ESP_LOGI(TAG, "[DUMP]   - %s (0x%02X): %s", name, object_id, value ? "ON" : "OFF");
+    } else {
+      int32_t raw_value = 0;
+      if (type_info.is_signed) {
+        switch (type_info.data_bytes) {
+          case 1:
+            raw_value = static_cast<int8_t>(data[pos]);
+            break;
+          case 2:
+            raw_value = static_cast<int16_t>(data[pos] | (data[pos + 1] << 8));
+            break;
+          case 3:
+            raw_value = data[pos] | (data[pos + 1] << 8) | (data[pos + 2] << 16);
+            if (raw_value & 0x800000) raw_value |= 0xFF000000;
+            break;
+          case 4:
+            raw_value = data[pos] | (data[pos + 1] << 8) | (data[pos + 2] << 16) | (data[pos + 3] << 24);
+            break;
+        }
+      } else {
+        uint32_t unsigned_value = 0;
+        switch (type_info.data_bytes) {
+          case 1:
+            unsigned_value = data[pos];
+            break;
+          case 2:
+            unsigned_value = data[pos] | (data[pos + 1] << 8);
+            break;
+          case 3:
+            unsigned_value = data[pos] | (data[pos + 1] << 8) | (data[pos + 2] << 16);
+            break;
+          case 4:
+            unsigned_value = data[pos] | (data[pos + 1] << 8) | (data[pos + 2] << 16) | (data[pos + 3] << 24);
+            break;
+        }
+        raw_value = unsigned_value;
+      }
+      float value = raw_value * type_info.factor;
+      ESP_LOGI(TAG, "[DUMP]   - %s (0x%02X): %.3f (raw: %d)", name, object_id, value, raw_value);
+    }
+    pos += type_info.data_bytes;
+  }
+
+  // Print YAML config hint
+  ESP_LOGI(TAG, "[DUMP] ----------------------------------------");
+  ESP_LOGI(TAG, "[DUMP] Example YAML config:");
+  ESP_LOGI(TAG, "[DUMP]   bthome_receiver:");
+  ESP_LOGI(TAG, "[DUMP]     devices:");
+  ESP_LOGI(TAG, "[DUMP]       - mac_address: \"%s\"", mac_str);
+  ESP_LOGI(TAG, "[DUMP]         name: \"My Device\"");
+  ESP_LOGI(TAG, "[DUMP] ----------------------------------------");
 }
 
 void BTHomeReceiverHub::loop() {
@@ -280,12 +543,6 @@ void BTHomeReceiverHub::process_nimble_advertisement(const struct ble_gap_disc_d
     address |= static_cast<uint64_t>(disc->addr.val[i]) << (i * 8);
   }
 
-  // Check if this device is registered
-  auto it = this->devices_.find(address);
-  if (it == this->devices_.end()) {
-    return;  // Not a registered device
-  }
-
   // Parse advertisement data to find BTHome service data
   const uint8_t *data = disc->data;
   uint8_t data_len = disc->length_data;
@@ -308,11 +565,23 @@ void BTHomeReceiverHub::process_nimble_advertisement(const struct ble_gap_disc_d
       uint16_t uuid = ad_data[0] | (ad_data[1] << 8);
 
       if (uuid == BTHOME_SERVICE_UUID) {
-        // Found BTHome service data
-        std::vector<uint8_t> service_data(ad_data + 2, ad_data + ad_data_len);
-        ESP_LOGV(TAG, "Processing BTHome advertisement from %012llX (%d bytes)",
-                 address, service_data.size());
-        it->second->parse_advertisement(service_data);
+        // Found BTHome service data (excluding the 2-byte UUID prefix)
+        const uint8_t *service_data = ad_data + 2;
+        size_t service_data_len = ad_data_len - 2;
+
+        // Dump mode: log all BTHome advertisements for discovery
+        if (this->dump_advertisements_) {
+          this->dump_advertisement_(address, service_data, service_data_len);
+        }
+
+        // Check if this device is registered
+        auto it = this->devices_.find(address);
+        if (it != this->devices_.end()) {
+          std::vector<uint8_t> service_data_vec(service_data, service_data + service_data_len);
+          ESP_LOGV(TAG, "Processing BTHome advertisement from %012llX (%d bytes)",
+                   address, service_data_vec.size());
+          it->second->parse_advertisement(service_data_vec);
+        }
         return;
       }
     }
@@ -329,17 +598,24 @@ void BTHomeReceiverHub::process_nimble_advertisement(const struct ble_gap_disc_d
 
 #ifdef USE_BTHOME_RECEIVER_BLUEDROID
 
-bool BTHomeReceiverHub::parse_device(const esp32_ble_tracker::ESPBTDevice &device) {
+bool BTHomeReceiverHub::parse_device(const esphome::esp32_ble_tracker::ESPBTDevice &device) {
   // Check if this device has BTHome service data (UUID 0xFCD2)
   for (const auto &service_data : device.get_service_datas()) {
     if (service_data.uuid.get_uuid().uuid.uuid16 == BTHOME_SERVICE_UUID) {
       // Look up registered device by MAC address
       uint64_t address = device.address_uint64();
+
+      // Dump mode: log all BTHome advertisements for discovery
+      if (this->dump_advertisements_) {
+        this->dump_advertisement_(address, service_data.data.data(), service_data.data.size());
+      }
+
       auto it = this->devices_.find(address);
       if (it != this->devices_.end()) {
         ESP_LOGV(TAG, "Processing BTHome advertisement from %012llX", address);
         return it->second->parse_advertisement(service_data.data);
-      } else {
+      } else if (!this->dump_advertisements_) {
+        // Only log at verbose level if not in dump mode (to avoid duplicate logs)
         ESP_LOGV(TAG, "Ignoring BTHome advertisement from unregistered device %012llX", address);
       }
       return false;

@@ -1,0 +1,89 @@
+# Lilygo T5 4.7" E-Paper Base Configuration
+# Using ESP32-WROVER-E with 16MB Flash, 8MB PSRAM
+
+external_components:
+  - source:
+      type: local
+      path: components
+    components: [epdiy_epaper]
+
+esp32:
+  board: esp-wrover-kit
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      # PSRAM configuration
+      CONFIG_ESP32_SPIRAM_SUPPORT: y
+      CONFIG_SPIRAM: y
+      CONFIG_SPIRAM_MODE_QUAD: y
+      CONFIG_SPIRAM_TYPE_AUTO: y
+      CONFIG_SPIRAM_SPEED_80M: y
+      CONFIG_SPIRAM_BOOT_INIT: y
+      CONFIG_SPIRAM_USE_CAPS_ALLOC: y
+      # Use NimBLE (lighter weight BLE stack)
+      CONFIG_BT_NIMBLE_ENABLED: y
+      # epdiy board config
+      CONFIG_EPD_BOARD_REVISION_LILYGO_T5_47: y
+      CONFIG_EPD_DISPLAY_TYPE_ED047TC1: y
+
+esphome:
+  platformio_options:
+    upload_speed: "921600"
+    board_build.flash_mode: qio
+    board_build.flash_size: 16MB
+    board_build.embed_txtfiles: ""
+
+# Physical buttons on T5 4.7" (ESP32 version)
+binary_sensor:
+  - platform: gpio
+    id: btn_1
+    pin:
+      number: GPIO39
+      inverted: true
+    name: "Button 1"
+
+  - platform: gpio
+    id: btn_2
+    pin:
+      number: GPIO34
+      inverted: true
+    name: "Button 2"
+
+  - platform: gpio
+    id: btn_3
+    pin:
+      number: GPIO35
+      inverted: true
+    name: "Button 3"
+
+# Battery voltage via ADC
+sensor:
+  - platform: adc
+    pin: GPIO36
+    id: battery_voltage
+    name: "Battery Voltage"
+    attenuation: 12db
+    update_interval: 60s
+    filters:
+      - multiply: 2
+
+  - platform: template
+    id: battery_percent
+    name: "Battery"
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    device_class: battery
+    lambda: |-
+      float v = id(battery_voltage).state;
+      if (std::isnan(v)) return NAN;
+      int pct = (1 - (4.2 - v) / (4.2 - 3.3)) * 100;
+      return (pct > 100) ? 100 : (pct < 0) ? 0 : pct;
+    update_interval: 60s
+
+# E-Paper display (ED047TC1) via epdiy
+# Resolution: 960x540 pixels
+display:
+  - platform: epdiy_epaper
+    id: epaper
+    display_type: ED047TC1
+    update_interval: never

@@ -1,0 +1,46 @@
+# Display Widget Helpers
+# Reusable globals and helpers for e-paper weather displays
+
+globals:
+  # Screen dimensions (T5 4.7" in landscape)
+  - id: screen_width
+    type: int
+    initial_value: '960'
+  - id: screen_height
+    type: int
+    initial_value: '540'
+  - id: margin
+    type: int
+    initial_value: '20'
+  - id: row_height
+    type: int
+    initial_value: '120'
+
+# Display helper lambdas are used directly in the main config display lambda
+# Example usage in main config:
+#
+# display:
+#   - id: !extend epaper
+#     lambda: |-
+#       // Draw a sensor card
+#       // x, y: position
+#       // icon: Material Symbol unicode
+#       // label: text label
+#       // value: sensor value
+#       // unit: unit string
+#       auto draw_sensor_card = [&](int x, int y, const char* icon,
+#                                    const char* label, float value,
+#                                    const char* unit, bool valid) {
+#         it.printf(x, y + 36, id(icon_weather), TextAlign::TOP_LEFT, icon);
+#         it.print(x + 80, y, id(font_label), TextAlign::TOP_LEFT, label);
+#         if (valid && !std::isnan(value)) {
+#           it.printf(x + 80, y + 30, id(font_value), TextAlign::TOP_LEFT, "%.1f", value);
+#           it.printf(x + 200, y + 50, id(font_unit), TextAlign::TOP_LEFT, unit);
+#         } else {
+#           it.print(x + 80, y + 30, id(font_value), TextAlign::TOP_LEFT, "--");
+#           it.printf(x + 140, y + 50, id(font_unit), TextAlign::TOP_LEFT, unit);
+#         }
+#       };
+#
+#       draw_sensor_card(20, 100, "\U0000e430", "Temperature",
+#                        id(outdoor_temp).state, "°C", id(outdoor_temp).has_state());
