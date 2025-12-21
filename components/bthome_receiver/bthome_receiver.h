@@ -222,6 +222,9 @@ class BTHomeDevice : public Parented<BTHomeReceiverHub> {
   std::array<uint8_t, AES_KEY_SIZE> encryption_key_{};
   uint32_t last_counter_{0};
 
+  // Deduplication - store last received service data to skip duplicate packets
+  std::vector<uint8_t> last_service_data_;
+
   // Sensors
 #ifdef USE_SENSOR
   std::vector<BTHomeSensor *> sensors_;

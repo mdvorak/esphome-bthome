@@ -52,6 +52,7 @@ void BTHome::dump_config() {
                 "  Max Interval: %ums\n"
                 "  TX Power: %ddBm\n"
                 "  Encryption: %s\n"
+                "  Retransmit: %dx @ %ums\n"
 #if defined(USE_ESP32) && defined(USE_BTHOME_NIMBLE)
                 "  BLE Stack: NimBLE",
 #elif defined(USE_ESP32)
@@ -65,7 +66,8 @@ void BTHome::dump_config() {
 #else
                 this->tx_power_nrf52_,
 #endif
-                this->encryption_enabled_ ? "enabled" : "disabled");
+                this->encryption_enabled_ ? "enabled" : "disabled",
+                this->retransmit_count_, this->retransmit_interval_);
   if (!this->device_name_.empty()) {
     ESP_LOGCONFIG(TAG, "  Device Name: %s", this->device_name_.c_str());
   }
@@ -223,15 +225,46 @@ void BTHome::setup() {
 }
 
 void BTHome::loop() {
+  uint32_t now = millis();
+
+  // Handle retransmissions
+  if (this->retransmit_remaining_ > 0 && this->advertising_) {
+    if (now - this->last_retransmit_time_ >= this->retransmit_interval_) {
+      ESP_LOGD(TAG, "Retransmitting (%d remaining)", this->retransmit_remaining_);
+      this->retransmit_remaining_--;
+      this->last_retransmit_time_ = now;
+
+      // Stop and restart advertising to force a new broadcast
+      this->stop_advertising_();
+      this->start_advertising_();
+
+#ifdef USE_ESP32
+      // Keep loop enabled while retransmissions pending
+      if (this->retransmit_remaining_ == 0) {
+        this->disable_loop();
+      }
+#endif
+    }
+    return;
+  }
+
   // Handle immediate advertising requests
   if (this->immediate_advertising_pending_) {
     this->immediate_advertising_pending_ = false;
     this->stop_advertising_();
     this->build_advertisement_data_();
     this->start_advertising_();
+
+    // Start retransmission cycle if configured
+    if (this->retransmit_count_ > 0) {
+      this->retransmit_remaining_ = this->retransmit_count_;
+      this->last_retransmit_time_ = now;
+      // Keep loop enabled for retransmissions
+    } else {
 #ifdef USE_ESP32
-    this->disable_loop();
+      this->disable_loop();
 #endif
+    }
     return;
   }
 
@@ -241,9 +274,17 @@ void BTHome::loop() {
     this->stop_advertising_();
     this->build_advertisement_data_();
     this->start_advertising_();
+
+    // Start retransmission cycle if configured
+    if (this->retransmit_count_ > 0) {
+      this->retransmit_remaining_ = this->retransmit_count_;
+      this->last_retransmit_time_ = now;
+      // Keep loop enabled for retransmissions
+    } else {
 #ifdef USE_ESP32
-    this->disable_loop();
+      this->disable_loop();
 #endif
+    }
   }
 }
 

@@ -45,6 +45,8 @@ CONF_MIN_INTERVAL = "min_interval"
 CONF_MAX_INTERVAL = "max_interval"
 CONF_ADVERTISE_IMMEDIATELY = "advertise_immediately"
 CONF_TRIGGER_BASED = "trigger_based"
+CONF_RETRANSMIT_COUNT = "retransmit_count"
+CONF_RETRANSMIT_INTERVAL = "retransmit_interval"
 
 # =============================================================================
 # BTHome v2 Sensor Object IDs
@@ -227,6 +229,11 @@ CONFIG_SCHEMA = cv.All(
             ),
             cv.Optional(CONF_TX_POWER, default=0): validate_tx_power,
             cv.Optional(CONF_ENCRYPTION_KEY): validate_encryption_key,
+            cv.Optional(CONF_RETRANSMIT_COUNT, default=0): cv.int_range(min=0, max=10),
+            cv.Optional(CONF_RETRANSMIT_INTERVAL, default="500ms"): cv.All(
+                cv.positive_time_period_milliseconds,
+                cv.Range(min=TimePeriod(milliseconds=100), max=TimePeriod(milliseconds=2000)),
+            ),
             cv.Optional(CONF_SENSORS): cv.ensure_list(
                 cv.Schema(
                     {
@@ -270,6 +277,8 @@ async def to_code(config):
     cg.add(var.set_min_interval(config[CONF_MIN_INTERVAL]))
     cg.add(var.set_max_interval(config[CONF_MAX_INTERVAL]))
     cg.add(var.set_tx_power(config[CONF_TX_POWER]))
+    cg.add(var.set_retransmit_count(config[CONF_RETRANSMIT_COUNT]))
+    cg.add(var.set_retransmit_interval(config[CONF_RETRANSMIT_INTERVAL]))
 
     # Always use ESPHome device name
     if CORE.name:

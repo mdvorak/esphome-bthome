@@ -86,6 +86,8 @@ class BTHome : public Component {
 
   void set_min_interval(uint16_t val) { this->min_interval_ = val; }
   void set_max_interval(uint16_t val) { this->max_interval_ = val; }
+  void set_retransmit_count(uint8_t count) { this->retransmit_count_ = count; }
+  void set_retransmit_interval(uint16_t interval_ms) { this->retransmit_interval_ = interval_ms; }
 
 #ifdef USE_ESP32
   void set_tx_power(int val) { this->tx_power_esp32_ = static_cast<esp_power_level_t>(val); }
@@ -137,6 +139,12 @@ class BTHome : public Component {
   uint16_t min_interval_{1000};
   uint16_t max_interval_{1000};
   bool advertising_{false};
+
+  // Retransmission settings (for reliability, devices often send same packet multiple times)
+  uint8_t retransmit_count_{0};       // Number of retransmissions (0 = disabled)
+  uint16_t retransmit_interval_{500}; // Interval between retransmissions in ms
+  uint8_t retransmit_remaining_{0};   // Remaining retransmissions for current packet
+  uint32_t last_retransmit_time_{0};  // Last retransmission time in ms
 
   // Device identification
   std::string device_name_;

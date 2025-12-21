@@ -672,6 +672,13 @@ bool BTHomeDevice::parse_advertisement(const std::vector<uint8_t> &service_data)
     return false;
   }
 
+  // Deduplicate: skip if this is an identical packet (devices often retransmit for reliability)
+  if (service_data == this->last_service_data_) {
+    ESP_LOGV(TAG, "Skipping duplicate packet");
+    return true;  // Successfully handled (by ignoring)
+  }
+  this->last_service_data_ = service_data;
+
   // First byte is device_info
   uint8_t device_info = service_data[0];
   bool is_encrypted = (device_info & BTHOME_DEVICE_INFO_ENCRYPTED_MASK) != 0;
