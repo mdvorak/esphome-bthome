@@ -48,12 +48,12 @@ time:
   on_time_sync:
   - component.update: epaper
   on_time:
-    # Reset daily rain counter at midnight
-    - seconds: 0
-      minutes: 0
-      hours: 0
-      then:
-        - lambda: id(rain_daily).publish_state(0);
+  # Reset daily rain counter at midnight
+  - seconds: 0
+    minutes: 0
+    hours: 0
+    then:
+    - lambda: id(rain_daily).publish_state(0);
 
 # Historical graphs for sensor data (24h history)
 graph:
@@ -138,29 +138,29 @@ sensor:
     internal: true
     on_value:
       then:
-        - lambda: |-
-            // Calculate rain delta (difference from last reading)
-            static float last_rain = NAN;
-            float current = id(rain_total).state;
-            if (!std::isnan(last_rain) && current >= last_rain) {
-              float delta = current - last_rain;
-              // Update rain rate (delta since last update)
-              id(rain_rate).publish_state(delta);
-              // Accumulate daily rain
-              id(rain_daily).publish_state(id(rain_daily).state + delta);
-            } else if (std::isnan(id(rain_daily).state)) {
-              // Initialize daily rain to 0
-              id(rain_daily).publish_state(0);
-            }
-            last_rain = current;
+      - lambda: |-
+          // Calculate rain delta (difference from last reading)
+          static float last_rain = NAN;
+          float current = id(rain_total).state;
+          if (!std::isnan(last_rain) && current >= last_rain) {
+            float delta = current - last_rain;
+            // Update rain rate (delta since last update)
+            id(rain_rate).publish_state(delta);
+            // Accumulate daily rain
+            id(rain_daily).publish_state(id(rain_daily).state + delta);
+          } else if (std::isnan(id(rain_daily).state)) {
+            // Initialize daily rain to 0
+            id(rain_daily).publish_state(0);
+          }
+          last_rain = current;
   # Wind speed (speed object 0x44) - device sends two values: speed and gusts
   speed:
-    - name: "Wind Speed"
-      id: wind_speed
-      index: 0
-    - name: "Wind Gusts"
-      id: wind_gusts_sensor
-      index: 1
+  - name: "Wind Speed"
+    id: wind_speed
+    index: 0
+  - name: "Wind Gusts"
+    id: wind_gusts_sensor
+    index: 1
   # Wind direction (direction object 0x5E)
   direction:
     name: "Wind Direction"

@@ -2,10 +2,10 @@
 # Using ESP32-WROVER-E with 16MB Flash, 8MB PSRAM
 
 external_components:
-  - source:
-      type: local
-      path: components
-    components: [epdiy_epaper]
+- source:
+    type: local
+    path: components
+  components: [ epdiy_epaper ]
 
 esp32:
   board: esp-wrover-kit
@@ -50,55 +50,55 @@ esphome:
 
 # Physical buttons on T5 4.7" (ESP32 version)
 binary_sensor:
-  - platform: gpio
-    id: btn_1
-    pin:
-      number: GPIO39
-      inverted: true
-    name: "Button 1"
+- platform: gpio
+  id: btn_1
+  pin:
+    number: GPIO39
+    inverted: true
+  name: "Button 1"
 
-  - platform: gpio
-    id: btn_2
-    pin:
-      number: GPIO34
-      inverted: true
-    name: "Button 2"
+- platform: gpio
+  id: btn_2
+  pin:
+    number: GPIO34
+    inverted: true
+  name: "Button 2"
 
-  - platform: gpio
-    id: btn_3
-    pin:
-      number: GPIO35
-      inverted: true
-    name: "Button 3"
+- platform: gpio
+  id: btn_3
+  pin:
+    number: GPIO35
+    inverted: true
+  name: "Button 3"
 
 # Battery voltage via ADC
 sensor:
-  - platform: adc
-    pin: GPIO36
-    id: battery_voltage
-    name: "Battery Voltage"
-    attenuation: 12db
-    update_interval: 60s
-    filters:
-      - multiply: 2
+- platform: adc
+  pin: GPIO36
+  id: battery_voltage
+  name: "Battery Voltage"
+  attenuation: 12db
+  update_interval: 60s
+  filters:
+  - multiply: 2
 
-  - platform: template
-    id: battery_percent
-    name: "Battery"
-    unit_of_measurement: "%"
-    accuracy_decimals: 0
-    device_class: battery
-    lambda: |-
-      float v = id(battery_voltage).state;
-      if (std::isnan(v)) return NAN;
-      int pct = (1 - (4.2 - v) / (4.2 - 3.3)) * 100;
-      return (pct > 100) ? 100 : (pct < 0) ? 0 : pct;
-    update_interval: 60s
+- platform: template
+  id: battery_percent
+  name: "Battery"
+  unit_of_measurement: "%"
+  accuracy_decimals: 0
+  device_class: battery
+  lambda: |-
+    float v = id(battery_voltage).state;
+    if (std::isnan(v)) return NAN;
+    int pct = (1 - (4.2 - v) / (4.2 - 3.3)) * 100;
+    return (pct > 100) ? 100 : (pct < 0) ? 0 : pct;
+  update_interval: 60s
 
 # E-Paper display (ED047TC1) via epdiy
 # Resolution: 960x540 pixels
 display:
-  - platform: epdiy_epaper
-    id: epaper
-    display_type: ED047TC1
-    update_interval: never
+- platform: epdiy_epaper
+  id: epaper
+  display_type: ED047TC1
+  update_interval: never

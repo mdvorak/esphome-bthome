@@ -2,19 +2,19 @@
 # Reusable globals and helpers for e-paper weather displays
 
 globals:
-  # Screen dimensions (T5 4.7" in landscape)
-  - id: screen_width
-    type: int
-    initial_value: '960'
-  - id: screen_height
-    type: int
-    initial_value: '540'
-  - id: margin
-    type: int
-    initial_value: '20'
-  - id: row_height
-    type: int
-    initial_value: '120'
+# Screen dimensions (T5 4.7" in landscape)
+- id: screen_width
+  type: int
+  initial_value: '960'
+- id: screen_height
+  type: int
+  initial_value: '540'
+- id: margin
+  type: int
+  initial_value: '20'
+- id: row_height
+  type: int
+  initial_value: '120'
 
 # Display helper lambdas are used directly in the main config display lambda
 # Example usage in main config:

@@ -12,7 +12,7 @@ esphome:
 esp32:
   board: seeed_xiao_esp32s3
   framework:
-    type: esp-idf  # Required for NimBLE
+    type: esp-idf # Required for NimBLE
 
 wifi:
   ap:
@@ -21,10 +21,10 @@ wifi:
 captive_portal:
 
 external_components:
-  - source:
-      type: local
-      path: components
-    components: [bthome_receiver]
+- source:
+    type: local
+    path: components
+  components: [ bthome_receiver ]
 
 logger:
   level: DEBUG
@@ -37,27 +37,27 @@ bthome_receiver:
   # Disable after discovering your devices to reduce log spam
   dump_advertisements: false
   devices:
-    - mac_address: "AA:BB:CC:DD:EE:FF"
-      name: "Living Room Sensor"
-      # Optional: Add encryption key for encrypted devices
-      # encryption_key: "231d39c1d7cc1ab1aee224cd096db932"
+  - mac_address: "AA:BB:CC:DD:EE:FF"
+    name: "Living Room Sensor"
+    # Optional: Add encryption key for encrypted devices
+    # encryption_key: "231d39c1d7cc1ab1aee224cd096db932"
 
-# Receive temperature and humidity from BTHome device
+    # Receive temperature and humidity from BTHome device
 sensor:
-  - platform: bthome_receiver
-    mac_address: "AA:BB:CC:DD:EE:FF"
-    temperature:
-      name: "Living Room Temperature"
-    humidity:
-      name: "Living Room Humidity"
-    battery:
-      name: "Living Room Battery"
+- platform: bthome_receiver
+  mac_address: "AA:BB:CC:DD:EE:FF"
+  temperature:
+    name: "Living Room Temperature"
+  humidity:
+    name: "Living Room Humidity"
+  battery:
+    name: "Living Room Battery"
 
 # Receive motion detection from BTHome device
 binary_sensor:
-  - platform: bthome_receiver
-    mac_address: "AA:BB:CC:DD:EE:FF"
-    motion:
-      name: "Living Room Motion"
-    door:
-      name: "Living Room Door"
+- platform: bthome_receiver
+  mac_address: "AA:BB:CC:DD:EE:FF"
+  motion:
+    name: "Living Room Motion"
+  door:
+    name: "Living Room Door"

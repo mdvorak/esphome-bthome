@@ -2,38 +2,37 @@
 # Reusable font definitions for weather station displays
 
 font:
-  # Use bold weights for better e-paper readability
-  - file: "gfonts://Roboto@700"
-    id: font_title
-    size: 48
+# Use bold weights for better e-paper readability
+- file: "gfonts://Roboto@700"
+  id: font_title
+  size: 48
 
-  - file: "gfonts://Roboto@700"
-    id: font_value
-    size: 64
+- file: "gfonts://Roboto@700"
+  id: font_value
+  size: 64
 
-  - file: "gfonts://Roboto@500"
-    id: font_label
-    size: 32
+- file: "gfonts://Roboto@500"
+  id: font_label
+  size: 32
 
-  - file: "gfonts://Roboto@500"
-    id: font_footer
-    size: 28
+- file: "gfonts://Roboto@500"
+  id: font_footer
+  size: 28
 
-  - file: "gfonts://Roboto@700"
-    id: font_unit
-    size: 36
+- file: "gfonts://Roboto@700"
+  id: font_unit
+  size: 36
 
-  # Material Design Icons (community)
-  - file: "https://github.com/Templarian/MaterialDesign-Webfont/raw/master/fonts/materialdesignicons-webfont.ttf"
-    id: icon_mdi
-    size: 56
-    glyphs:
-      - "\U000F050F" # thermometer
-      - "\U000F058E" # water-percent (humidity)
-      - "\U000F0597" # weather-rainy
-      - "\U000F059D" # weather-windy
-      - "\U000F05A8" # white-balance-sunny (solar)
-      - "\U000F0079" # battery
-      - "\U000F0083" # battery-alert
-      - "\U000F0F54" # home-thermometer
-
+# Material Design Icons (community)
+- file: "https://github.com/Templarian/MaterialDesign-Webfont/raw/master/fonts/materialdesignicons-webfont.ttf"
+  id: icon_mdi
+  size: 56
+  glyphs:
+  - "󰔏" # thermometer
+  - "󰖎" # water-percent (humidity)
+  - "󰖗" # weather-rainy
+  - "󰖝" # weather-windy
+  - "󰖨" # white-balance-sunny (solar)
+  - "󰁹" # battery
+  - "󰂃" # battery-alert
+  - "󰽔" # home-thermometer
