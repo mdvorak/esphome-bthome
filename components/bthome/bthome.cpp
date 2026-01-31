@@ -316,6 +316,13 @@ void BTHome::add_binary_measurement(binary_sensor::BinarySensor *sensor, uint8_t
 #endif
 
 void BTHome::send_button_event(uint8_t button_index, uint8_t event_type) {
+  // Validate reasonable button index to prevent excessive NONE events
+  if (button_index > 7) {
+    ESP_LOGW(TAG, "Button index %d too high (max 7 recommended for single-button events). "
+             "Use send_button_events() for more control.", button_index);
+    return;
+  }
+  
   ESP_LOGD(TAG, "Sending button event: index=%d, type=0x%02X", button_index, event_type);
   
   // Per BTHome v2 spec: Multiple buttons are represented by multiple sequential 0x3A objects
@@ -371,7 +378,7 @@ void BTHome::send_button_events(const std::vector<uint8_t> &event_types) {
     size_t event_len = this->encode_event_(this->adv_data_ + pos, MAX_BLE_ADVERTISEMENT_SIZE - pos, 
                                            OBJECT_ID_BUTTON, &event_type, 1);
     if (event_len == 0) {
-      ESP_LOGW(TAG, "Not enough space for button event %d, truncating", i);
+      ESP_LOGW(TAG, "Not enough space in BLE advertisement packet for button event %d, truncating remaining events", i);
       break;
     }
     pos += event_len;

@@ -190,6 +190,129 @@ Enable debug logging to see rotation in action:
 
 The log shows which sensor index the current packet starts from and how many total sensors exist.
 
+## Button and Dimmer Events
+
+The BTHome component supports sending button and dimmer events, following the [BTHome v2 specification](https://bthome.io/format/). These events are useful for creating remote controls, switches, and dimmer controllers.
+
+### Button Events
+
+Button events allow you to send various button press types to receivers. The BTHome v2 spec uses **multiple sequential 0x3A objects** to represent multiple buttons, where the order determines the button index.
+
+#### Supported Event Types
+
+- `0x00` - None (no event, used for multi-button advertisements)
+- `0x01` - Press (single press)
+- `0x02` - Double press
+- `0x03` - Triple press
+- `0x04` - Long press
+- `0x05` - Long double press
+- `0x06` - Long triple press
+- `0x80` - Hold press (continuous press)
+
+#### Single Button Events
+
+Use `send_button_event(button_index, event_type)` to send an event for a single button:
+
+```yaml
+binary_sensor:
+  - platform: gpio
+    pin: GPIO0
+    name: "Button 0"
+    on_press:
+      then:
+        - lambda: |-
+            // Send button 0 press event
+            id(bthome_broadcaster)->send_button_event(0, 0x01);
+    
+    on_multi_click:
+      - timing:
+          - ON for at most 1s
+          - OFF for at most 1s
+          - ON for at most 1s
+          - OFF for at least 0.2s
+        then:
+          - lambda: |-
+              // Send button 0 double press event
+              id(bthome_broadcaster)->send_button_event(0, 0x02);
+
+  - platform: gpio
+    pin: GPIO1
+    name: "Button 1"
+    on_press:
+      then:
+        - lambda: |-
+            // Send button 1 press event
+            id(bthome_broadcaster)->send_button_event(1, 0x01);
+```
+
+#### Multiple Button Events
+
+Use `send_button_events(vector<uint8_t>)` to send events for multiple buttons in a single advertisement:
+
+```yaml
+api:
+  services:
+    - service: send_multi_button_events
+      variables:
+        button0_event: int
+        button1_event: int
+      then:
+        - lambda: |-
+            // Send events for multiple buttons
+            // Order determines button index: [button 0, button 1]
+            std::vector<uint8_t> events = {
+              (uint8_t)button0_event,
+              (uint8_t)button1_event
+            };
+            id(bthome_broadcaster)->send_button_events(events);
+```
+
+**Examples:**
+- Button 0 press, Button 1 double press: `{0x01, 0x02}`
+- Only Button 1 press (Button 0 none): `{0x00, 0x01}`
+- Both buttons pressed: `{0x01, 0x01}`
+
+### Dimmer Events
+
+Dimmer events send signed steps for brightness or volume control:
+
+```yaml
+sensor:
+  - platform: rotary_encoder
+    name: "Rotary Encoder"
+    id: rotary
+    pin_a: GPIO2
+    pin_b: GPIO3
+    on_value:
+      then:
+        - lambda: |-
+            static float last_value = 0;
+            float delta = x - last_value;
+            last_value = x;
+            
+            // Send dimmer event: positive=increase, negative=decrease
+            int8_t steps = (int8_t)delta;
+            if (steps != 0) {
+              id(bthome_broadcaster)->send_dimmer_event(steps);
+            }
+```
+
+**Event Values:**
+- Positive values (1-127): Increase brightness/volume
+- Negative values (-128 to -1): Decrease brightness/volume
+
+### BTHome v2 Spec Compliance
+
+The implementation follows the official BTHome v2 specification:
+- Multiple buttons are represented by multiple sequential `0x3A` objects
+- The order of objects determines button index (0=first, 1=second, etc.)
+- Special event `0x00` (None) can be used when only some buttons have events
+- See: [BTHome Format Reference](https://bthome.io/format/)
+
+:::tip[Remote Control Example]
+See the `button_dimmer_example.yaml` file in the repository for a complete remote control example with multiple buttons and dimmer support.
+:::
+
 ## Complete Configuration Example
 
 ### Basic BTHome with NimBLE
