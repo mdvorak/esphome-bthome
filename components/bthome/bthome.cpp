@@ -401,30 +401,6 @@ void BTHome::trigger_immediate_sensor_advertising_(uint8_t measurement_index, bo
 }
 
 void BTHome::build_advertisement_data_() {
-  this->immediate_advertising_pending_ = true;
-  this->immediate_adv_measurement_index_ = measurement_index;
-  this->immediate_adv_is_binary_ = is_binary;
-#ifdef USE_ESP32
-  this->enable_loop();
-#endif
-}
-
-void BTHome::trigger_immediate_event_advertising_(const BTHomeEvent *events, size_t count) {
-  if (events == nullptr || count == 0 || count > BTHOME_MAX_EVENTS) {
-    ESP_LOGW(TAG, "Invalid event count for immediate advertising");
-    return;
-  }
-  
-  // Store event data for use in build_advertisement_data_
-  memcpy(this->immediate_event_data_, events, count * sizeof(BTHomeEvent));
-  this->immediate_event_count_ = count;
-  
-#ifdef USE_ESP32
-  this->enable_loop();
-#endif
-}
-
-void BTHome::build_advertisement_data_() {
   size_t pos = 0;
 
   // Flags AD element
