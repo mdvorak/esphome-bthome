@@ -40,7 +40,7 @@ bthome_receiver:
   # Discovery mode: Enable to log all BTHome advertisements for finding devices
   # This will dump MAC addresses, sensor types, and values to the log
   # Disable after discovering your devices to reduce log spam
-  dump_advertisements: false
+  # dump_interval: 30s  # Uncomment to enable periodic dumping
   devices:
   - mac_address: "AA:BB:CC:DD:EE:FF"
     name: "Living Room Sensor"

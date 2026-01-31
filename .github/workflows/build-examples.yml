@@ -36,6 +36,8 @@ jobs:
           - two_gang_switch_esp32.yaml
           - esp32_devkit_basic.yaml
           - button_dimmer_example.yaml
+          - bthome_receiver_nimble.yaml
+          - bthome_receiver_bluedroid.yaml
         device:
           - {name: esp32, board: esp32dev}
           - {name: esp32-c3, board: esp32-c3-devkitm-1}

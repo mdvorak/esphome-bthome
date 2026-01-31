@@ -1,6 +1,14 @@
 #include "bthome_receiver.h"
 #include "esphome/core/log.h"
+
+#ifdef USE_BTHOME_RECEIVER_NIMBLE
+// NimBLE uses tinycrypt for decryption
+#include "tinycrypt/ccm_mode.h"
+#include "tinycrypt/constants.h"
+#else
+// Bluedroid uses mbedTLS for decryption
 #include "mbedtls/ccm.h"
+#endif
 
 #include <cstring>
 #include <cmath>
@@ -785,16 +793,29 @@ bool BTHomeDevice::decrypt_payload_(const uint8_t *ciphertext, size_t ciphertext
   }
 
   size_t actual_ciphertext_len = ciphertext_len - 4;
-  const uint8_t *mic = ciphertext + actual_ciphertext_len;
 
-  // Prepare combined buffer for mbedtls (ciphertext + tag)
-  uint8_t combined[256];
-  if (ciphertext_len > sizeof(combined)) {
-    ESP_LOGE(TAG, "Ciphertext too long");
+#ifdef USE_BTHOME_RECEIVER_NIMBLE
+  // NimBLE: Use tinycrypt for decryption (smaller footprint)
+  struct tc_ccm_mode_struct ctx;
+  struct tc_aes_key_sched_struct sched;
+
+  if (tc_aes128_set_encrypt_key(&sched, this->encryption_key_.data()) != TC_CRYPTO_SUCCESS) {
+    ESP_LOGE(TAG, "Failed to set AES key");
     return false;
   }
-  memcpy(combined, ciphertext, ciphertext_len);
 
+  if (tc_ccm_config(&ctx, &sched, nonce, sizeof(nonce), 4) != TC_CRYPTO_SUCCESS) {
+    ESP_LOGE(TAG, "Failed to configure CCM");
+    return false;
+  }
+
+  if (tc_ccm_decryption_verification(plaintext, actual_ciphertext_len, nullptr, 0,
+                                     ciphertext, actual_ciphertext_len, &ctx) != TC_CRYPTO_SUCCESS) {
+    ESP_LOGE(TAG, "CCM decryption failed");
+    return false;
+  }
+#else
+  // Bluedroid: Use mbedTLS for decryption
   mbedtls_ccm_context ctx;
   mbedtls_ccm_init(&ctx);
 
@@ -805,14 +826,16 @@ bool BTHomeDevice::decrypt_payload_(const uint8_t *ciphertext, size_t ciphertext
     return false;
   }
 
-  ret = mbedtls_ccm_auth_decrypt(&ctx, actual_ciphertext_len, nonce, sizeof(nonce), nullptr, 0, ciphertext, plaintext,
-                                  mic, 4);
+  const uint8_t *mic = ciphertext + actual_ciphertext_len;
+  ret = mbedtls_ccm_auth_decrypt(&ctx, actual_ciphertext_len, nonce, sizeof(nonce),
+                                 nullptr, 0, ciphertext, plaintext, mic, 4);
   mbedtls_ccm_free(&ctx);
 
   if (ret != 0) {
     ESP_LOGE(TAG, "mbedtls_ccm_auth_decrypt failed: %d", ret);
     return false;
   }
+#endif
 
   *plaintext_len = actual_ciphertext_len;
   return true;

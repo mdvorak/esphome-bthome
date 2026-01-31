@@ -22,6 +22,7 @@ from esphome.const import (
 from esphome import automation
 from esphome.core import CORE
 from esphome.components.esp32 import add_idf_sdkconfig_option
+import logging
 
 CODEOWNERS = ["@esphome/core"]
 AUTO_LOAD = ["sensor", "binary_sensor", "text_sensor"]
@@ -39,6 +40,8 @@ CONF_EVENT = "event"
 CONF_BUTTON_INDEX = "button_index"
 CONF_DIMMER_INDEX = "dimmer_index"
 CONF_DUMP_INTERVAL = "dump_interval"
+
+_LOGGER = logging.getLogger(__name__)
 
 bthome_receiver_ns = cg.esphome_ns.namespace("bthome_receiver")
 # Note: BTHomeReceiverHub class definition depends on BLE stack at runtime
@@ -258,6 +261,8 @@ async def to_code(config):
     # Set dump interval for periodic summary (0 = disabled)
     if CONF_DUMP_INTERVAL in config:
         cg.add(var.set_dump_interval(config[CONF_DUMP_INTERVAL]))
+        # Note: dumps can consume a lot of RAM and eventually crash the device
+        _LOGGER.warning("Enabled BLE device periodic dump, this should not be enabled during normal operation")
 
     ble_stack = config.get(CONF_BLE_STACK, BLE_STACK_BLUEDROID)
 
@@ -273,7 +278,8 @@ async def to_code(config):
 
         # Configure NimBLE roles - only observer needed for receiving
         add_idf_sdkconfig_option("CONFIG_BT_NIMBLE_ROLE_OBSERVER", True)
-        add_idf_sdkconfig_option("CONFIG_BT_NIMBLE_ROLE_BROADCASTER", False)
+        # TODO
+        # add_idf_sdkconfig_option("CONFIG_BT_NIMBLE_ROLE_BROADCASTER", False)
         add_idf_sdkconfig_option("CONFIG_BT_NIMBLE_ROLE_CENTRAL", False)
         add_idf_sdkconfig_option("CONFIG_BT_NIMBLE_ROLE_PERIPHERAL", False)
 
