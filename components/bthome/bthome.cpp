@@ -324,7 +324,20 @@ void BTHome::send_button_event(uint8_t button_index, uint8_t event_type) {
   ESP_LOGD(TAG, "Sending button event: index=%d, type=0x%02X", button_index, event_type);
   
   // Button event data: upper 4 bits = button_index, lower 4 bits = event_type
-  uint8_t event_data = (button_index << 4) | (event_type & 0x0F);
+  // Note: BUTTON_EVENT_HOLD_PRESS (0x80) doesn't fit this encoding scheme properly
+  // and should be used with button_index=0 only, or transmitted as the raw 0x80 value
+  uint8_t event_data;
+  if (event_type == BUTTON_EVENT_HOLD_PRESS && button_index == 0) {
+    // Special case: hold_press for button 0 is transmitted as raw 0x80
+    event_data = BUTTON_EVENT_HOLD_PRESS;
+  } else if (event_type == BUTTON_EVENT_HOLD_PRESS) {
+    // For other buttons, hold_press encoding is not supported by the current receiver format
+    ESP_LOGW(TAG, "HOLD_PRESS (0x80) with button_index > 0 is not supported by current format");
+    return;
+  } else {
+    // Standard encoding: pack button_index and event_type
+    event_data = (button_index << 4) | (event_type & 0x0F);
+  }
   
   // Build advertisement with button event
   size_t pos = 0;
