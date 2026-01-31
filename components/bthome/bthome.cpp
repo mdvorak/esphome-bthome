@@ -315,38 +315,15 @@ void BTHome::add_binary_measurement(binary_sensor::BinarySensor *sensor, uint8_t
 }
 #endif
 
-void BTHome::send_button_event(uint8_t button_index, uint8_t event_type) {
-  // Validate reasonable button index to prevent excessive NONE events
-  if (button_index > 7) {
-    ESP_LOGW(TAG, "Button index %d too high (max 7 recommended for single-button events). "
-             "Use send_button_events() for more control.", button_index);
+void BTHome::send_events(const BTHomeEvent *events, size_t count) {
+  if (events == nullptr || count == 0) {
+    ESP_LOGW(TAG, "No events to send");
     return;
   }
   
-  ESP_LOGD(TAG, "Sending button event: index=%d, type=0x%02X", button_index, event_type);
+  ESP_LOGD(TAG, "Sending %d event(s)", count);
   
-  // Per BTHome v2 spec: Multiple buttons are represented by multiple sequential 0x3A objects
-  // For a single button event at specific index, we need to send (button_index+1) events,
-  // with 0x00 (NONE) for all preceding buttons
-  // See: https://bthome.io/format/ - "Multiple events of the same type"
-  
-  std::vector<uint8_t> events;
-  for (uint8_t i = 0; i <= button_index; i++) {
-    events.push_back(i == button_index ? event_type : BUTTON_EVENT_NONE);
-  }
-  
-  this->send_button_events(events);
-}
-
-void BTHome::send_button_events(const std::vector<uint8_t> &event_types) {
-  if (event_types.empty()) {
-    ESP_LOGW(TAG, "No button events to send");
-    return;
-  }
-  
-  ESP_LOGD(TAG, "Sending %d button event(s)", event_types.size());
-  
-  // Build advertisement with button events
+  // Build advertisement with events
   size_t pos = 0;
   
   // Flags AD element
@@ -370,15 +347,14 @@ void BTHome::send_button_events(const std::vector<uint8_t> &event_types) {
   }
   this->adv_data_[pos++] = device_info;
   
-  // Encode button events sequentially per BTHome spec
-  // Each button is represented by: 0x3A event_type
-  // The order determines button index (0=first, 1=second, etc.)
-  for (size_t i = 0; i < event_types.size(); i++) {
-    uint8_t event_type = event_types[i];
+  // Encode events sequentially
+  // Each event is represented by: object_id + data
+  for (size_t i = 0; i < count; i++) {
+    const BTHomeEvent &event = events[i];
     size_t event_len = this->encode_event_(this->adv_data_ + pos, MAX_BLE_ADVERTISEMENT_SIZE - pos, 
-                                           OBJECT_ID_BUTTON, &event_type, 1);
+                                           event.object_id, &event.data, 1);
     if (event_len == 0) {
-      ESP_LOGW(TAG, "Not enough space in BLE advertisement packet for button event %d, truncating remaining events", i);
+      ESP_LOGW(TAG, "Not enough space in BLE advertisement packet for event %d, truncating remaining events", i);
       break;
     }
     pos += event_len;
@@ -397,52 +373,48 @@ void BTHome::send_button_events(const std::vector<uint8_t> &event_types) {
   this->start_advertising_();
 }
 
-void BTHome::send_dimmer_event(int8_t steps) {
-  ESP_LOGD(TAG, "Sending dimmer event: steps=%d", steps);
-  
-  // Dimmer event data: signed int8
-  uint8_t event_data = static_cast<uint8_t>(steps);
-  
-  // Build advertisement with dimmer event
-  size_t pos = 0;
-  
-  // Flags AD element
-  this->adv_data_[pos++] = 0x02;  // Length
-  this->adv_data_[pos++] = 0x01;  // Type: Flags
-  this->adv_data_[pos++] = 0x06;  // LE General Discoverable, BR/EDR not supported
-  
-  // Service Data AD element
-  size_t service_data_len_pos = pos;
-  pos++;  // Length placeholder
-  this->adv_data_[pos++] = 0x16;  // Type: Service Data
-  
-  // BTHome Service UUID (little-endian)
-  this->adv_data_[pos++] = BTHOME_SERVICE_UUID & 0xFF;
-  this->adv_data_[pos++] = (BTHOME_SERVICE_UUID >> 8) & 0xFF;
-  
-  // Device info byte
-  uint8_t device_info = this->trigger_based_ ? BTHOME_DEVICE_INFO_TRIGGER_UNENCRYPTED : BTHOME_DEVICE_INFO_UNENCRYPTED;
-  if (this->encryption_enabled_) {
-    device_info = this->trigger_based_ ? BTHOME_DEVICE_INFO_TRIGGER_ENCRYPTED : BTHOME_DEVICE_INFO_ENCRYPTED;
+void BTHome::send_button_event(uint8_t index, uint8_t action) {
+  // Validate reasonable button index to prevent excessive NONE events
+  if (index > 7) {
+    ESP_LOGW(TAG, "Button index %d too high (max 7 recommended)", index);
+    return;
   }
-  this->adv_data_[pos++] = device_info;
   
-  // Encode event data
-  size_t event_len = this->encode_event_(this->adv_data_ + pos, MAX_BLE_ADVERTISEMENT_SIZE - pos, 
-                                         OBJECT_ID_DIMMER, &event_data, 1);
-  pos += event_len;
+  ESP_LOGD(TAG, "Sending button event: index=%d, action=0x%02X", index, action);
   
-  // Set service data length
-  this->adv_data_[service_data_len_pos] = (pos - service_data_len_pos - 1);
-  this->adv_data_len_ = pos;
+  // Per BTHome v2 spec: Multiple buttons are represented by multiple sequential 0x3A objects
+  // For a single button event at specific index, we need to send (index+1) events,
+  // with 0x00 (NONE) for all preceding buttons
+  // See: https://bthome.io/format/ - "Multiple events of the same type"
   
-  // Increment packet ID
-  this->packet_id_++;
+  BTHomeEvent events[8];  // Max 8 buttons
+  for (uint8_t i = 0; i <= index; i++) {
+    events[i].object_id = OBJECT_ID_BUTTON;
+    events[i].data = (i == index) ? action : BUTTON_EVENT_NONE;
+    events[i].padding = 0;
+  }
   
-  // Update advertising
-  this->data_changed_ = true;
-  this->stop_advertising_();
-  this->start_advertising_();
+  this->send_events(events, index + 1);
+}
+
+void BTHome::send_dim_event(uint8_t index, int8_t action) {
+  ESP_LOGD(TAG, "Sending dimmer event: index=%d, action=%d", index, action);
+  
+  // For dimmer events, we typically only send one event per index
+  // If multiple dimmers, we follow the same pattern as buttons
+  if (index > 7) {
+    ESP_LOGW(TAG, "Dimmer index %d too high (max 7 recommended)", index);
+    return;
+  }
+  
+  BTHomeEvent events[8];  // Max 8 dimmers
+  for (uint8_t i = 0; i <= index; i++) {
+    events[i].object_id = OBJECT_ID_DIMMER;
+    events[i].data = (i == index) ? static_cast<uint8_t>(action) : 0;
+    events[i].padding = 0;
+  }
+  
+  this->send_events(events, index + 1);
 }
 
 void BTHome::trigger_immediate_advertising_(uint8_t measurement_index, bool is_binary) {

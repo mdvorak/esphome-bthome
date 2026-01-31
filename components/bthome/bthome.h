@@ -3,6 +3,7 @@
 #include "esphome/core/defines.h"
 #include "esphome/core/component.h"
 #include "esphome/core/helpers.h"
+#include "esphome/core/automation.h"
 #ifdef USE_SENSOR
 #include "esphome/components/sensor/sensor.h"
 #endif
@@ -68,6 +69,14 @@ static const uint8_t BUTTON_EVENT_LONG_DOUBLE_PRESS = 0x05;
 static const uint8_t BUTTON_EVENT_LONG_TRIPLE_PRESS = 0x06;
 static const uint8_t BUTTON_EVENT_HOLD_PRESS = 0x80;
 
+// Event structure for sending button and dimmer events
+// Packed to 32 bits for efficient storage and passing
+struct BTHomeEvent {
+  uint8_t object_id;  // BTHome object ID (0x3A for button, 0x3C for dimmer)
+  uint8_t data;       // Event data (button action or dimmer steps)
+  uint16_t padding;   // Padding for 32-bit alignment
+};
+
 #ifdef USE_SENSOR
 struct SensorMeasurement {
   sensor::Sensor *sensor;
@@ -126,9 +135,9 @@ class BTHome : public Component {
 #endif
 
   // Event methods for button and dimmer events
-  void send_button_event(uint8_t button_index, uint8_t event_type);
-  void send_button_events(const std::vector<uint8_t> &event_types);
-  void send_dimmer_event(int8_t steps);
+  void send_events(const BTHomeEvent *events, size_t count);
+  void send_button_event(uint8_t index, uint8_t action);
+  void send_dim_event(uint8_t index, int8_t action);
 
 #if defined(USE_ESP32) && defined(USE_BTHOME_BLUEDROID)
   void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param) override;
@@ -226,6 +235,34 @@ class BTHome : public Component {
   struct bt_data ad_[2];
   struct bt_data sd_[5];  // Scan response data (service UUID, TX power, appearance, name, manufacturer)
 #endif
+};
+
+// =============================================================================
+// Actions for sending button and dimmer events
+// =============================================================================
+
+template<typename... Ts> class ButtonEventAction : public Action<Ts...>, public Parented<BTHome> {
+ public:
+  TEMPLATABLE_VALUE(uint8_t, index)
+  TEMPLATABLE_VALUE(uint8_t, action)
+
+  void play(Ts... x) override {
+    uint8_t idx = this->index_.value(x...);
+    uint8_t act = this->action_.value(x...);
+    this->parent_->send_button_event(idx, act);
+  }
+};
+
+template<typename... Ts> class DimEventAction : public Action<Ts...>, public Parented<BTHome> {
+ public:
+  TEMPLATABLE_VALUE(uint8_t, index)
+  TEMPLATABLE_VALUE(int8_t, action)
+
+  void play(Ts... x) override {
+    uint8_t idx = this->index_.value(x...);
+    int8_t act = this->action_.value(x...);
+    this->parent_->send_dim_event(idx, act);
+  }
 };
 
 }  // namespace bthome

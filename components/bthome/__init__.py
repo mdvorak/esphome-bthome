@@ -21,6 +21,7 @@ from esphome.const import (
     CONF_TYPE,
 )
 from esphome.core import CORE, TimePeriod
+from esphome import automation
 
 CODEOWNERS = ["@esphome/core"]
 
@@ -39,6 +40,10 @@ BLE_STACK_NIMBLE = "nimble"
 bthome_ns = cg.esphome_ns.namespace("bthome")
 BTHome = bthome_ns.class_("BTHome", cg.Component)
 
+# Actions for sending events
+ButtonEventAction = bthome_ns.class_("ButtonEventAction", automation.Action)
+DimEventAction = bthome_ns.class_("DimEventAction", automation.Action)
+
 # Configuration constants
 CONF_ENCRYPTION_KEY = "encryption_key"
 CONF_MIN_INTERVAL = "min_interval"
@@ -47,6 +52,8 @@ CONF_ADVERTISE_IMMEDIATELY = "advertise_immediately"
 CONF_TRIGGER_BASED = "trigger_based"
 CONF_RETRANSMIT_COUNT = "retransmit_count"
 CONF_RETRANSMIT_INTERVAL = "retransmit_interval"
+CONF_INDEX = "index"
+CONF_ACTION = "action"
 
 # =============================================================================
 # BTHome v2 Sensor Object IDs
@@ -357,3 +364,55 @@ async def to_code(config):
         zephyr_add_prj_conf("TINYCRYPT", True)
         zephyr_add_prj_conf("TINYCRYPT_AES", True)
         zephyr_add_prj_conf("TINYCRYPT_AES_CCM", True)
+
+
+# =============================================================================
+# Actions for sending button and dimmer events
+# =============================================================================
+
+@automation.register_action(
+    "bthome.button_event",
+    ButtonEventAction,
+    cv.Schema(
+        {
+            cv.GenerateID(): cv.use_id(BTHome),
+            cv.Required(CONF_INDEX): cv.templatable(cv.uint8_t),
+            cv.Required(CONF_ACTION): cv.templatable(cv.uint8_t),
+        }
+    ),
+)
+async def button_event_to_code(config, action_id, template_arg, args):
+    var = cg.new_Pvariable(action_id, template_arg)
+    await cg.register_parented(var, config[CONF_ID])
+    
+    template_ = await cg.templatable(config[CONF_INDEX], args, cg.uint8)
+    cg.add(var.set_index(template_))
+    
+    template_ = await cg.templatable(config[CONF_ACTION], args, cg.uint8)
+    cg.add(var.set_action(template_))
+    
+    return var
+
+
+@automation.register_action(
+    "bthome.dim_event",
+    DimEventAction,
+    cv.Schema(
+        {
+            cv.GenerateID(): cv.use_id(BTHome),
+            cv.Required(CONF_INDEX): cv.templatable(cv.uint8_t),
+            cv.Required(CONF_ACTION): cv.templatable(cv.int8_t),
+        }
+    ),
+)
+async def dim_event_to_code(config, action_id, template_arg, args):
+    var = cg.new_Pvariable(action_id, template_arg)
+    await cg.register_parented(var, config[CONF_ID])
+    
+    template_ = await cg.templatable(config[CONF_INDEX], args, cg.uint8)
+    cg.add(var.set_index(template_))
+    
+    template_ = await cg.templatable(config[CONF_ACTION], args, cg.int8)
+    cg.add(var.set_action(template_))
+    
+    return var

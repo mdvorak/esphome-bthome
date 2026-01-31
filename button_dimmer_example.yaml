@@ -1,4 +1,4 @@
-# BTHome Button and Dimmer Event Example (BTHome v2 Spec Compliant)
+# BTHome Button and Dimmer Event Example (Unified Event API)
 # Demonstrates how to send button and dimmer events via BLE using BTHome v2 protocol
 # Compatible with Home Assistant's BTHome integration
 #
@@ -12,7 +12,7 @@ esphome:
   on_boot:
     - priority: -100
       then:
-        - logger.log: "BTHome ready. Spec-compliant button event format."
+        - logger.log: "BTHome ready with unified event API."
 
 esp32:
   board: esp32dev
@@ -42,7 +42,7 @@ bthome:
   tx_power: 0
   trigger_based: true  # For button/event-based devices
 
-# Example button that triggers BTHome button events
+# Example button that triggers BTHome button events using actions
 binary_sensor:
 - platform: gpio
   pin:
@@ -55,9 +55,11 @@ binary_sensor:
   on_press:
     then:
       - logger.log: "Button 0 pressed - sending BTHome button event"
-      - lambda: |-
-          // Send single button event using spec-compliant format
-          id(bthome_broadcaster)->send_button_event(0, 0x01);  // button 0, press
+      # Using the new bthome.button_event action
+      - bthome.button_event:
+          id: bthome_broadcaster
+          index: 0
+          action: 0x01  # BUTTON_EVENT_PRESS
 
   on_multi_click:
     - timing:
@@ -67,8 +69,11 @@ binary_sensor:
         - OFF for at least 0.2s
       then:
         - logger.log: "Button 0 double press"
-        - lambda: |-
-            id(bthome_broadcaster)->send_button_event(0, 0x02);  // button 0, double_press
+        # Using the new bthome.button_event action
+        - bthome.button_event:
+            id: bthome_broadcaster
+            index: 0
+            action: 0x02  # BUTTON_EVENT_DOUBLE_PRESS
 
 - platform: gpio
   pin:
@@ -81,9 +86,11 @@ binary_sensor:
   on_press:
     then:
       - logger.log: "Button 1 pressed"
-      - lambda: |-
-          // Send button event for button 1
-          id(bthome_broadcaster)->send_button_event(1, 0x01);
+      # Using the new bthome.button_event action
+      - bthome.button_event:
+          id: bthome_broadcaster
+          index: 1
+          action: 0x01  # BUTTON_EVENT_PRESS
 
 # Example sensor with dimmer control
 sensor:
@@ -101,10 +108,11 @@ sensor:
           
           int8_t steps = (int8_t)delta;
           if (steps != 0) {
-            id(bthome_broadcaster)->send_dimmer_event(steps);
+            // Direct C++ call for simplicity in lambda
+            id(bthome_broadcaster)->send_dim_event(0, steps);
           }
 
-# Example API endpoints to manually trigger events
+# Example API endpoints demonstrating the new actions
 api:
   services:
     - service: send_button_event
@@ -115,32 +123,25 @@ api:
         - logger.log:
             format: "API: sending button event index=%d type=0x%02X"
             args: ['button_index', 'event_type']
-        - lambda: |-
-            id(bthome_broadcaster)->send_button_event(button_index, event_type);
+        # Using the new bthome.button_event action
+        - bthome.button_event:
+            id: bthome_broadcaster
+            index: !lambda "return button_index;"
+            action: !lambda "return event_type;"
     
-    - service: send_multiple_button_events
+    - service: send_dim_event
       variables:
-        event0: int
-        event1: int
-      then:
-        - logger.log:
-            format: "API: sending multi-button events [0x%02X, 0x%02X]"
-            args: ['event0', 'event1']
-        - lambda: |-
-            // Send multiple button events in one advertisement
-            // Per BTHome spec: 0x3A event0 0x3A event1
-            std::vector<uint8_t> events = {(uint8_t)event0, (uint8_t)event1};
-            id(bthome_broadcaster)->send_button_events(events);
-    
-    - service: send_dimmer_event
-      variables:
+        dimmer_index: int
         steps: int
       then:
         - logger.log:
-            format: "API: sending dimmer event steps=%d"
-            args: ['steps']
-        - lambda: |-
-            id(bthome_broadcaster)->send_dimmer_event(steps);
+            format: "API: sending dimmer event index=%d steps=%d"
+            args: ['dimmer_index', 'steps']
+        # Using the new bthome.dim_event action
+        - bthome.dim_event:
+            id: bthome_broadcaster
+            index: !lambda "return dimmer_index;"
+            action: !lambda "return steps;"
 
 # Button event type constants (BTHome v2 spec):
 # BUTTON_EVENT_NONE           = 0x00  # Special: no event (for multi-button advertisements)
