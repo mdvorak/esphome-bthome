@@ -55,6 +55,8 @@ BTHomeButtonTrigger = bthome_receiver_ns.class_(
 )
 # int8_t type for dimmer trigger parameter
 int8_t = cg.global_ns.class_("int8_t")
+int8 = cg.global_ns.class_("int8_t")
+
 BTHomeDimmerTrigger = bthome_receiver_ns.class_(
     "BTHomeDimmerTrigger", automation.Trigger.template(int8_t)
 )
@@ -335,6 +337,6 @@ async def to_code(config):
             trigger = cg.new_Pvariable(dimmer_conf[CONF_ID], device_var)
             cg.add(trigger.set_dimmer_index(dimmer_conf[CONF_DIMMER_INDEX]))
             cg.add(device_var.add_dimmer_trigger(trigger))
-            await automation.build_automation(trigger, [("::int8_t", "steps")], dimmer_conf)
+            await automation.build_automation(trigger, [(int8, "steps")], dimmer_conf)
 
         cg.add(var.register_device(device_var))
