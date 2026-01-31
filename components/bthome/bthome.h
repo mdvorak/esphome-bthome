@@ -157,7 +157,8 @@ class BTHome : public Component {
 #endif
   size_t encode_event_(uint8_t *data, size_t max_len, uint8_t object_id, const uint8_t *event_data, size_t event_data_len);
   bool encrypt_payload_(const uint8_t *plaintext, size_t plaintext_len, uint8_t *ciphertext, size_t *ciphertext_len);
-  void trigger_immediate_advertising_(uint8_t measurement_index, bool is_binary);
+  void trigger_immediate_sensor_advertising_(uint8_t measurement_index, bool is_binary);
+  void trigger_immediate_event_advertising_(const BTHomeEvent *events, size_t count);
 
   // Measurements storage
 #ifdef USE_SENSOR
@@ -209,6 +210,11 @@ class BTHome : public Component {
   bool immediate_advertising_pending_{false};
   uint8_t immediate_adv_measurement_index_{0};
   bool immediate_adv_is_binary_{false};
+  
+  // Immediate event advertising
+  bool immediate_event_advertising_pending_{false};
+  BTHomeEvent immediate_event_data_[BTHOME_MAX_EVENTS];
+  size_t immediate_event_count_{0};
 
   // Platform-specific members
 #ifdef USE_ESP32

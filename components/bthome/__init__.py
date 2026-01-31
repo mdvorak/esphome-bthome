@@ -243,7 +243,7 @@ CONFIG_SCHEMA = cv.All(
                 cv.positive_time_period_milliseconds,
                 cv.Range(min=TimePeriod(milliseconds=100), max=TimePeriod(milliseconds=2000)),
             ),
-            cv.Optional(CONF_MAX_EVENTS, default=8): cv.int_range(min=1, max=16),
+            cv.Optional(CONF_MAX_EVENTS, default=4): cv.int_range(min=1, max=16),
             cv.Optional(CONF_SENSORS): cv.ensure_list(
                 cv.Schema(
                     {

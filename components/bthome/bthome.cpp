@@ -184,7 +184,7 @@ void BTHome::setup() {
     auto &measurement = this->measurements_[i];
     measurement.sensor->add_on_state_callback([this, i](float) {
       if (this->measurements_[i].advertise_immediately) {
-        this->trigger_immediate_advertising_(i, false);
+        this->trigger_immediate_sensor_advertising_(i, false);
       } else {
         this->data_changed_ = true;
 #ifdef USE_ESP32
@@ -200,7 +200,7 @@ void BTHome::setup() {
     auto &measurement = this->binary_measurements_[i];
     measurement.sensor->add_on_state_callback([this, i](bool) {
       if (this->binary_measurements_[i].advertise_immediately) {
-        this->trigger_immediate_advertising_(i, true);
+        this->trigger_immediate_sensor_advertising_(i, true);
       } else {
         this->data_changed_ = true;
 #ifdef USE_ESP32
@@ -248,9 +248,8 @@ void BTHome::loop() {
     return;
   }
 
-  // Handle immediate advertising requests
-  if (this->immediate_advertising_pending_) {
-    this->immediate_advertising_pending_ = false;
+  // Handle immediate advertising requests (sensors or events)
+  if (this->immediate_advertising_pending_ || this->immediate_event_advertising_pending_) {
     this->stop_advertising_();
     this->build_advertisement_data_();
     this->start_advertising_();
@@ -323,54 +322,8 @@ void BTHome::send_events(const BTHomeEvent *events, size_t count) {
   
   ESP_LOGD(TAG, "Sending %d event(s)", count);
   
-  // Build advertisement with events
-  size_t pos = 0;
-  
-  // Flags AD element
-  this->adv_data_[pos++] = 0x02;  // Length
-  this->adv_data_[pos++] = 0x01;  // Type: Flags
-  this->adv_data_[pos++] = 0x06;  // LE General Discoverable, BR/EDR not supported
-  
-  // Service Data AD element
-  size_t service_data_len_pos = pos;
-  pos++;  // Length placeholder
-  this->adv_data_[pos++] = 0x16;  // Type: Service Data
-  
-  // BTHome Service UUID (little-endian)
-  this->adv_data_[pos++] = BTHOME_SERVICE_UUID & 0xFF;
-  this->adv_data_[pos++] = (BTHOME_SERVICE_UUID >> 8) & 0xFF;
-  
-  // Device info byte
-  uint8_t device_info = this->trigger_based_ ? BTHOME_DEVICE_INFO_TRIGGER_UNENCRYPTED : BTHOME_DEVICE_INFO_UNENCRYPTED;
-  if (this->encryption_enabled_) {
-    device_info = this->trigger_based_ ? BTHOME_DEVICE_INFO_TRIGGER_ENCRYPTED : BTHOME_DEVICE_INFO_ENCRYPTED;
-  }
-  this->adv_data_[pos++] = device_info;
-  
-  // Encode events sequentially
-  // Each event is represented by: object_id + data
-  for (size_t i = 0; i < count; i++) {
-    const BTHomeEvent &event = events[i];
-    size_t event_len = this->encode_event_(this->adv_data_ + pos, MAX_BLE_ADVERTISEMENT_SIZE - pos, 
-                                           event.object_id, &event.data, 1);
-    if (event_len == 0) {
-      ESP_LOGW(TAG, "Not enough space in BLE advertisement packet for event %d, truncating remaining events", i);
-      break;
-    }
-    pos += event_len;
-  }
-  
-  // Set service data length
-  this->adv_data_[service_data_len_pos] = (pos - service_data_len_pos - 1);
-  this->adv_data_len_ = pos;
-  
-  // Increment packet ID
-  this->packet_id_++;
-  
-  // Update advertising
-  this->data_changed_ = true;
-  this->stop_advertising_();
-  this->start_advertising_();
+  // Use the immediate event advertising mechanism
+  this->trigger_immediate_event_advertising_(events, count);
 }
 
 void BTHome::send_button_event(uint8_t index, uint8_t action) {
@@ -417,10 +370,28 @@ void BTHome::send_dim_event(uint8_t index, int8_t step) {
   this->send_events(events, index + 1);
 }
 
-void BTHome::trigger_immediate_advertising_(uint8_t measurement_index, bool is_binary) {
+void BTHome::trigger_immediate_sensor_advertising_(uint8_t measurement_index, bool is_binary) {
   this->immediate_advertising_pending_ = true;
   this->immediate_adv_measurement_index_ = measurement_index;
   this->immediate_adv_is_binary_ = is_binary;
+#ifdef USE_ESP32
+  this->enable_loop();
+#endif
+}
+
+void BTHome::trigger_immediate_event_advertising_(const BTHomeEvent *events, size_t count) {
+  if (events == nullptr || count == 0 || count > BTHOME_MAX_EVENTS) {
+    ESP_LOGW(TAG, "Invalid event count for immediate advertising");
+    return;
+  }
+  
+  // Store event data for use in build_advertisement_data_
+  for (size_t i = 0; i < count; i++) {
+    this->immediate_event_data_[i] = events[i];
+  }
+  this->immediate_event_count_ = count;
+  this->immediate_event_advertising_pending_ = true;
+  
 #ifdef USE_ESP32
   this->enable_loop();
 #endif
@@ -460,8 +431,21 @@ void BTHome::build_advertisement_data_() {
   this->adv_data_[pos++] = 0x00;  // Object ID: packet_id
   this->adv_data_[pos++] = this->packet_id_;
 
-  // Handle immediate advertising - single sensor only
-  if (this->immediate_advertising_pending_) {
+  // Handle immediate event advertising
+  if (this->immediate_event_advertising_pending_) {
+    for (size_t i = 0; i < this->immediate_event_count_; i++) {
+      const BTHomeEvent &event = this->immediate_event_data_[i];
+      size_t event_len = this->encode_event_(this->adv_data_ + pos, MAX_BLE_ADVERTISEMENT_SIZE - pos, 
+                                             event.object_id, reinterpret_cast<const uint8_t*>(&event.event), 1);
+      if (event_len == 0) {
+        ESP_LOGW(TAG, "Not enough space for event %d in advertisement", i);
+        break;
+      }
+      pos += event_len;
+    }
+  }
+  // Handle immediate sensor advertising - single sensor only
+  else if (this->immediate_advertising_pending_) {
 #ifdef USE_BINARY_SENSOR
     if (this->immediate_adv_is_binary_) {
       auto &measurement = this->binary_measurements_[this->immediate_adv_measurement_index_];
@@ -571,6 +555,10 @@ void BTHome::build_advertisement_data_() {
   // Note: Device name is in scan response, not advertisement (to save space for sensor data)
 
   this->adv_data_len_ = pos;
+
+  // Clear immediate advertising flags
+  this->immediate_advertising_pending_ = false;
+  this->immediate_event_advertising_pending_ = false;
 
   // Increment packet_id for next data change (wraps at 255)
   this->packet_id_++;

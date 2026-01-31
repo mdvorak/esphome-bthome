@@ -157,6 +157,12 @@ class BTHomeButtonTrigger : public Trigger<>, public Parented<BTHomeDevice> {
 class BTHomeDimmerTrigger : public Trigger<int8_t>, public Parented<BTHomeDevice> {
  public:
   explicit BTHomeDimmerTrigger(BTHomeDevice *parent) : Parented(parent) {}
+
+  void set_dimmer_index(uint8_t index) { this->dimmer_index_ = index; }
+  uint8_t get_dimmer_index() const { return this->dimmer_index_; }
+
+ protected:
+  uint8_t dimmer_index_{0};
 };
 
 // =============================================================================

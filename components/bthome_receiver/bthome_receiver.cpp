@@ -342,9 +342,34 @@ void BTHomeReceiverHub::dump_advertisement_(uint64_t address, const uint8_t *dat
     }
 
     // Handle special types
-    if (object_id == OBJECT_ID_BUTTON || object_id == OBJECT_ID_DIMMER) {
+    if (object_id == OBJECT_ID_BUTTON) {
       if (pos + 1 > len) break;
-      pos++;
+      uint8_t event_type = data[pos++];
+      char val_str[32];
+      const char *event_name = "unknown";
+      switch (event_type) {
+        case BUTTON_EVENT_NONE: event_name = "none"; break;
+        case BUTTON_EVENT_PRESS: event_name = "press"; break;
+        case BUTTON_EVENT_DOUBLE_PRESS: event_name = "double_press"; break;
+        case BUTTON_EVENT_TRIPLE_PRESS: event_name = "triple_press"; break;
+        case BUTTON_EVENT_LONG_PRESS: event_name = "long_press"; break;
+        case BUTTON_EVENT_LONG_DOUBLE_PRESS: event_name = "long_double_press"; break;
+        case BUTTON_EVENT_LONG_TRIPLE_PRESS: event_name = "long_triple_press"; break;
+        case 0x80: event_name = "hold_press"; break;
+      }
+      snprintf(val_str, sizeof(val_str), "%s=%s", name, event_name);
+      if (!measurements.empty()) measurements += " ";
+      measurements += val_str;
+      continue;
+    }
+    
+    if (object_id == OBJECT_ID_DIMMER) {
+      if (pos + 1 > len) break;
+      int8_t steps = static_cast<int8_t>(data[pos++]);
+      char val_str[32];
+      snprintf(val_str, sizeof(val_str), "%s=%d", name, steps);
+      if (!measurements.empty()) measurements += " ";
+      measurements += val_str;
       continue;
     }
 
@@ -1029,7 +1054,9 @@ void BTHomeDevice::handle_button_event_(uint8_t button_index, uint8_t event_type
 
 void BTHomeDevice::handle_dimmer_event_(uint8_t dimmer_index, int8_t steps) {
   for (auto *trigger : this->dimmer_triggers_) {
-    trigger->trigger(steps);
+    if (trigger->get_dimmer_index() == dimmer_index) {
+      trigger->trigger(steps);
+    }
   }
 }
 

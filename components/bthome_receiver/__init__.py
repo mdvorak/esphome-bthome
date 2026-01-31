@@ -37,6 +37,7 @@ CONF_ON_BUTTON = "on_button"
 CONF_ON_DIMMER = "on_dimmer"
 CONF_EVENT = "event"
 CONF_BUTTON_INDEX = "button_index"
+CONF_DIMMER_INDEX = "dimmer_index"
 CONF_DUMP_INTERVAL = "dump_interval"
 
 bthome_receiver_ns = cg.esphome_ns.namespace("bthome_receiver")
@@ -194,6 +195,7 @@ BUTTON_TRIGGER_SCHEMA = automation.validate_automation(
 DIMMER_TRIGGER_SCHEMA = automation.validate_automation(
     {
         cv.GenerateID(): cv.declare_id(BTHomeDimmerTrigger),
+        cv.Optional(CONF_DIMMER_INDEX, default=0): cv.int_range(min=0, max=255),
     }
 )
 
@@ -331,6 +333,7 @@ async def to_code(config):
         # Register dimmer triggers
         for dimmer_conf in device_conf.get(CONF_ON_DIMMER, []):
             trigger = cg.new_Pvariable(dimmer_conf[CONF_ID], device_var)
+            cg.add(trigger.set_dimmer_index(dimmer_conf[CONF_DIMMER_INDEX]))
             cg.add(device_var.add_dimmer_trigger(trigger))
             await automation.build_automation(trigger, [(cg.int8, "steps")], dimmer_conf)
 
