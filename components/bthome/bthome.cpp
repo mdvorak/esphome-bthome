@@ -315,6 +315,107 @@ void BTHome::add_binary_measurement(binary_sensor::BinarySensor *sensor, uint8_t
 }
 #endif
 
+void BTHome::send_button_event(uint8_t button_index, uint8_t event_type) {
+  if (button_index > 15) {
+    ESP_LOGW(TAG, "Button index %d out of range (0-15)", button_index);
+    return;
+  }
+  
+  ESP_LOGD(TAG, "Sending button event: index=%d, type=0x%02X", button_index, event_type);
+  
+  // Button event data: upper 4 bits = button_index, lower 4 bits = event_type
+  uint8_t event_data = (button_index << 4) | (event_type & 0x0F);
+  
+  // Build advertisement with button event
+  size_t pos = 0;
+  
+  // Flags AD element
+  this->adv_data_[pos++] = 0x02;  // Length
+  this->adv_data_[pos++] = 0x01;  // Type: Flags
+  this->adv_data_[pos++] = 0x06;  // LE General Discoverable, BR/EDR not supported
+  
+  // Service Data AD element
+  size_t service_data_len_pos = pos;
+  pos++;  // Length placeholder
+  this->adv_data_[pos++] = 0x16;  // Type: Service Data
+  
+  // BTHome Service UUID (little-endian)
+  this->adv_data_[pos++] = BTHOME_SERVICE_UUID & 0xFF;
+  this->adv_data_[pos++] = (BTHOME_SERVICE_UUID >> 8) & 0xFF;
+  
+  // Device info byte
+  uint8_t device_info = this->trigger_based_ ? BTHOME_DEVICE_INFO_TRIGGER_UNENCRYPTED : BTHOME_DEVICE_INFO_UNENCRYPTED;
+  if (this->encryption_enabled_) {
+    device_info = this->trigger_based_ ? BTHOME_DEVICE_INFO_TRIGGER_ENCRYPTED : BTHOME_DEVICE_INFO_ENCRYPTED;
+  }
+  this->adv_data_[pos++] = device_info;
+  
+  // Encode event data
+  size_t event_len = this->encode_event_(this->adv_data_ + pos, MAX_BLE_ADVERTISEMENT_SIZE - pos, 
+                                         OBJECT_ID_BUTTON, &event_data, 1);
+  pos += event_len;
+  
+  // Set service data length
+  this->adv_data_[service_data_len_pos] = (pos - service_data_len_pos - 1);
+  this->adv_data_len_ = pos;
+  
+  // Increment packet ID
+  this->packet_id_++;
+  
+  // Update advertising
+  this->data_changed_ = true;
+  this->stop_advertising_();
+  this->start_advertising_();
+}
+
+void BTHome::send_dimmer_event(int8_t steps) {
+  ESP_LOGD(TAG, "Sending dimmer event: steps=%d", steps);
+  
+  // Dimmer event data: signed int8
+  uint8_t event_data = static_cast<uint8_t>(steps);
+  
+  // Build advertisement with dimmer event
+  size_t pos = 0;
+  
+  // Flags AD element
+  this->adv_data_[pos++] = 0x02;  // Length
+  this->adv_data_[pos++] = 0x01;  // Type: Flags
+  this->adv_data_[pos++] = 0x06;  // LE General Discoverable, BR/EDR not supported
+  
+  // Service Data AD element
+  size_t service_data_len_pos = pos;
+  pos++;  // Length placeholder
+  this->adv_data_[pos++] = 0x16;  // Type: Service Data
+  
+  // BTHome Service UUID (little-endian)
+  this->adv_data_[pos++] = BTHOME_SERVICE_UUID & 0xFF;
+  this->adv_data_[pos++] = (BTHOME_SERVICE_UUID >> 8) & 0xFF;
+  
+  // Device info byte
+  uint8_t device_info = this->trigger_based_ ? BTHOME_DEVICE_INFO_TRIGGER_UNENCRYPTED : BTHOME_DEVICE_INFO_UNENCRYPTED;
+  if (this->encryption_enabled_) {
+    device_info = this->trigger_based_ ? BTHOME_DEVICE_INFO_TRIGGER_ENCRYPTED : BTHOME_DEVICE_INFO_ENCRYPTED;
+  }
+  this->adv_data_[pos++] = device_info;
+  
+  // Encode event data
+  size_t event_len = this->encode_event_(this->adv_data_ + pos, MAX_BLE_ADVERTISEMENT_SIZE - pos, 
+                                         OBJECT_ID_DIMMER, &event_data, 1);
+  pos += event_len;
+  
+  // Set service data length
+  this->adv_data_[service_data_len_pos] = (pos - service_data_len_pos - 1);
+  this->adv_data_len_ = pos;
+  
+  // Increment packet ID
+  this->packet_id_++;
+  
+  // Update advertising
+  this->data_changed_ = true;
+  this->stop_advertising_();
+  this->start_advertising_();
+}
+
 void BTHome::trigger_immediate_advertising_(uint8_t measurement_index, bool is_binary) {
   this->immediate_advertising_pending_ = true;
   this->immediate_adv_measurement_index_ = measurement_index;
@@ -875,6 +976,19 @@ size_t BTHome::encode_binary_measurement_(uint8_t *data, size_t max_len, uint8_t
   return 2;
 }
 #endif
+
+size_t BTHome::encode_event_(uint8_t *data, size_t max_len, uint8_t object_id, const uint8_t *event_data, size_t event_data_len) {
+  // Events are encoded as: [object_id] [event_data...]
+  // Button event (0x3A): [object_id] [button_index << 4 | event_type]
+  // Dimmer event (0x3C): [object_id] [steps (signed int8)]
+  
+  size_t total_len = 1 + event_data_len;
+  if (max_len < total_len) return 0;
+  
+  data[0] = object_id;
+  memcpy(data + 1, event_data, event_data_len);
+  return total_len;
+}
 
 bool BTHome::encrypt_payload_(const uint8_t *plaintext, size_t plaintext_len, uint8_t *ciphertext, size_t *ciphertext_len) {
   if (!this->encryption_enabled_) return false;

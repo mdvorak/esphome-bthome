@@ -53,6 +53,20 @@ static const uint8_t BTHOME_DEVICE_INFO_TRIGGER_ENCRYPTED = 0x45;     // Trigger
 static const size_t MAX_BLE_ADVERTISEMENT_SIZE = 31;
 static const size_t MAX_DEVICE_NAME_LENGTH = 20;  // Leave room for other AD elements
 
+// Event object IDs
+static const uint8_t OBJECT_ID_BUTTON = 0x3A;
+static const uint8_t OBJECT_ID_DIMMER = 0x3C;
+
+// Button event types (BTHome v2 spec object ID 0x3A)
+static const uint8_t BUTTON_EVENT_NONE = 0x00;
+static const uint8_t BUTTON_EVENT_PRESS = 0x01;
+static const uint8_t BUTTON_EVENT_DOUBLE_PRESS = 0x02;
+static const uint8_t BUTTON_EVENT_TRIPLE_PRESS = 0x03;
+static const uint8_t BUTTON_EVENT_LONG_PRESS = 0x04;
+static const uint8_t BUTTON_EVENT_LONG_DOUBLE_PRESS = 0x05;
+static const uint8_t BUTTON_EVENT_LONG_TRIPLE_PRESS = 0x06;
+static const uint8_t BUTTON_EVENT_HOLD_PRESS = 0x80;
+
 #ifdef USE_SENSOR
 struct SensorMeasurement {
   sensor::Sensor *sensor;
@@ -110,6 +124,10 @@ class BTHome : public Component {
   void add_binary_measurement(binary_sensor::BinarySensor *sensor, uint8_t object_id, bool advertise_immediately);
 #endif
 
+  // Event methods for button and dimmer events
+  void send_button_event(uint8_t button_index, uint8_t event_type);
+  void send_dimmer_event(int8_t steps);
+
 #if defined(USE_ESP32) && defined(USE_BTHOME_BLUEDROID)
   void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param) override;
 #endif
@@ -125,6 +143,7 @@ class BTHome : public Component {
 #ifdef USE_BINARY_SENSOR
   size_t encode_binary_measurement_(uint8_t *data, size_t max_len, uint8_t object_id, bool value);
 #endif
+  size_t encode_event_(uint8_t *data, size_t max_len, uint8_t object_id, const uint8_t *event_data, size_t event_data_len);
   bool encrypt_payload_(const uint8_t *plaintext, size_t plaintext_len, uint8_t *ciphertext, size_t *ciphertext_len);
   void trigger_immediate_advertising_(uint8_t measurement_index, bool is_binary);
 
