@@ -200,18 +200,86 @@ Button events allow you to send various button press types to receivers. The BTH
 
 #### Supported Event Types
 
-- `0x00` - None (no event, used for multi-button advertisements)
-- `0x01` - Press (single press)
-- `0x02` - Double press
-- `0x03` - Triple press
-- `0x04` - Long press
-- `0x05` - Long double press
-- `0x06` - Long triple press
-- `0x80` - Hold press (continuous press)
+| Event Name | Numeric Value | Description |
+|------------|---------------|-------------|
+| `none` | `0x00` | None (no event, used for multi-button advertisements) |
+| `press` | `0x01` | Press (single press) |
+| `double_press` | `0x02` | Double press |
+| `triple_press` | `0x03` | Triple press |
+| `long_press` | `0x04` | Long press |
+| `long_double_press` | `0x05` | Long double press |
+| `long_triple_press` | `0x06` | Long triple press |
+| `hold_press` | `0x80` | Hold press (continuous press) |
 
-#### Single Button Events
+#### Using the `bthome.button_event` Action
 
-Use `send_button_event(button_index, event_type)` to send an event for a single button:
+:::note[Event Support Requires Configuration]
+To use `bthome.button_event` and `bthome.dim_event` actions, you must set `max_events` in your `bthome:` configuration. For example:
+
+```yaml
+bthome:
+  max_events: 1  # Enable event support (at least 1 required)
+  # ... other config
+```
+
+Without `max_events > 0`, event actions will fail to compile because event functionality is compile-time gated.
+:::
+
+The `bthome.button_event` action supports both named event types and numeric values. You can use the shorthand syntax (just the event name/value) or the full syntax with explicit parameters.
+
+**Shorthand syntax** (recommended):
+```yaml
+binary_sensor:
+  - platform: gpio
+    pin: GPIO0
+    name: "Button 0"
+    on_press:
+      then:
+        - bthome.button_event: press  # Simple!
+
+    on_multi_click:
+      - timing:
+          - ON for at most 1s
+          - OFF for at most 1s
+          - ON for at most 1s
+          - OFF for at least 0.2s
+        then:
+          - bthome.button_event: double_press
+
+  - platform: gpio
+    pin: GPIO1
+    name: "Button 1"
+    on_press:
+      then:
+        - bthome.button_event:
+            action: press
+            index: 1  # Specify button index
+```
+
+**Full syntax** with all options:
+```yaml
+binary_sensor:
+  - platform: gpio
+    pin: GPIO2
+    name: "Button 2"
+    on_press:
+      then:
+        - bthome.button_event:
+            id: bthome_broadcaster  # Optional: specify BTHome component
+            action: press           # Named event type
+            index: 2                # Button index (default: 0)
+```
+
+**Using numeric values** (for custom events):
+```yaml
+on_press:
+  then:
+    - bthome.button_event: 0x01  # Numeric value also works
+```
+
+#### C++ API for Button Events
+
+You can also send button events from C++ lambdas using `send_button_event(button_index, event_type)`:
 
 ```yaml
 binary_sensor:
@@ -223,26 +291,6 @@ binary_sensor:
         - lambda: |-
             // Send button 0 press event
             id(bthome_broadcaster)->send_button_event(0, 0x01);
-    
-    on_multi_click:
-      - timing:
-          - ON for at most 1s
-          - OFF for at most 1s
-          - ON for at most 1s
-          - OFF for at least 0.2s
-        then:
-          - lambda: |-
-              // Send button 0 double press event
-              id(bthome_broadcaster)->send_button_event(0, 0x02);
-
-  - platform: gpio
-    pin: GPIO1
-    name: "Button 1"
-    on_press:
-      then:
-        - lambda: |-
-            // Send button 1 press event
-            id(bthome_broadcaster)->send_button_event(1, 0x01);
 ```
 
 #### Multiple Button Events
@@ -274,8 +322,25 @@ api:
 
 ### Dimmer Events
 
-Dimmer events send signed steps for brightness or volume control:
+Dimmer events send signed steps for brightness or volume control. The `bthome.dim_event` action supports both shorthand and full syntax.
 
+**Shorthand syntax** (recommended):
+```yaml
+sensor:
+  - platform: rotary_encoder
+    name: "Rotary Encoder"
+    id: rotary
+    pin_a: GPIO2
+    pin_b: GPIO3
+    on_clockwise:
+      then:
+        - bthome.dim_event: 1  # Increase by 1 step
+    on_anticlockwise:
+      then:
+        - bthome.dim_event: -1  # Decrease by 1 step
+```
+
+**Full syntax** with all options:
 ```yaml
 sensor:
   - platform: rotary_encoder
@@ -286,20 +351,21 @@ sensor:
     on_clockwise:
       then:
         - bthome.dim_event:
-            id: bthome_broadcaster
-            index: 0
-            steps: 1  # Increase
+            id: bthome_broadcaster  # Optional: specify BTHome component
+            steps: 1                # Number of steps (positive = increase)
+            index: 0                # Dimmer index (default: 0)
     on_anticlockwise:
       then:
         - bthome.dim_event:
             id: bthome_broadcaster
+            steps: -1               # Negative = decrease
             index: 0
-            steps: -1  # Decrease
 ```
 
-**Event Values:**
+**Step Values:**
 - Positive values (1-127): Increase brightness/volume
 - Negative values (-128 to -1): Decrease brightness/volume
+- Larger absolute values = bigger steps (e.g., `steps: 5` for faster dimming)
 
 ### BTHome v2 Spec Compliance
 
