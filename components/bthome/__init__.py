@@ -381,7 +381,7 @@ async def to_code(config):
             add_idf_sdkconfig_option("CONFIG_BT_NIMBLE_ROLE_PERIPHERAL", False)
             add_idf_sdkconfig_option("CONFIG_BT_NIMBLE_ROLE_BROADCASTER", True)
             # Enable use of raw adv data
-            add_idf_sdkconfig_option("CONFIG_BT_NIMBLE_EXT_ADV", True)
+            add_idf_sdkconfig_option("CONFIG_BT_NIMBLE_EXT_ADV", False)
             # Use tinycrypt for smaller footprint (saves ~7KB)
             add_idf_sdkconfig_option("CONFIG_BT_NIMBLE_CRYPTO_STACK_MBEDTLS", False)
         else:
