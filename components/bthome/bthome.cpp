@@ -374,9 +374,9 @@ void BTHome::send_events(const BTHomeEvent *events, size_t count) {
 }
 
 void BTHome::send_button_event(uint8_t index, uint8_t action) {
-  // Validate reasonable button index to prevent excessive NONE events
-  if (index > 7) {
-    ESP_LOGW(TAG, "Button index %d too high (max 7 recommended)", index);
+  // Validate index against configured max
+  if (index >= BTHOME_MAX_EVENTS) {
+    ESP_LOGW(TAG, "Button index %d exceeds max_events (%d)", index, BTHOME_MAX_EVENTS);
     return;
   }
   
@@ -387,31 +387,31 @@ void BTHome::send_button_event(uint8_t index, uint8_t action) {
   // with 0x00 (NONE) for all preceding buttons
   // See: https://bthome.io/format/ - "Multiple events of the same type"
   
-  BTHomeEvent events[8];  // Max 8 buttons
+  BTHomeEvent events[BTHOME_MAX_EVENTS];
   for (uint8_t i = 0; i <= index; i++) {
     events[i].object_id = OBJECT_ID_BUTTON;
-    events[i].data = (i == index) ? action : BUTTON_EVENT_NONE;
-    events[i].padding = 0;
+    events[i].event = (i == index) ? action : BUTTON_EVENT_NONE;
   }
   
   this->send_events(events, index + 1);
 }
 
-void BTHome::send_dim_event(uint8_t index, int8_t action) {
-  ESP_LOGD(TAG, "Sending dimmer event: index=%d, action=%d", index, action);
-  
-  // For dimmer events, we typically only send one event per index
-  // If multiple dimmers, we follow the same pattern as buttons
-  if (index > 7) {
-    ESP_LOGW(TAG, "Dimmer index %d too high (max 7 recommended)", index);
+void BTHome::send_dim_event(uint8_t index, int8_t step) {
+  // Validate index against configured max
+  if (index >= BTHOME_MAX_EVENTS) {
+    ESP_LOGW(TAG, "Dimmer index %d exceeds max_events (%d)", index, BTHOME_MAX_EVENTS);
     return;
   }
   
-  BTHomeEvent events[8];  // Max 8 dimmers
+  ESP_LOGD(TAG, "Sending dimmer event: index=%d, step=%d", index, step);
+  
+  // For dimmer events, we follow the same pattern as buttons
+  // Multiple dimmers are represented by multiple sequential 0x3C objects
+  
+  BTHomeEvent events[BTHOME_MAX_EVENTS];
   for (uint8_t i = 0; i <= index; i++) {
     events[i].object_id = OBJECT_ID_DIMMER;
-    events[i].data = (i == index) ? static_cast<uint8_t>(action) : 0;
-    events[i].padding = 0;
+    events[i].step = (i == index) ? step : 0;
   }
   
   this->send_events(events, index + 1);

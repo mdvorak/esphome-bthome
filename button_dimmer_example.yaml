@@ -141,7 +141,7 @@ api:
         - bthome.dim_event:
             id: bthome_broadcaster
             index: !lambda "return dimmer_index;"
-            action: !lambda "return steps;"
+            step: !lambda "return steps;"
 
 # Button event type constants (BTHome v2 spec):
 # BUTTON_EVENT_NONE           = 0x00  # Special: no event (for multi-button advertisements)

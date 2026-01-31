@@ -212,7 +212,7 @@ class BTHomeDevice : public Parented<BTHomeReceiverHub> {
 
   // Handle events
   void handle_button_event_(uint8_t button_index, uint8_t event_type);
-  void handle_dimmer_event_(int8_t steps);
+  void handle_dimmer_event_(uint8_t dimmer_index, int8_t steps);
 
   uint64_t address_{0};
   std::string name_;

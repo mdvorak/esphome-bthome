@@ -12,7 +12,6 @@
 #endif
 
 #include <array>
-#include <vector>
 
 // Platform-specific includes
 #ifdef USE_ESP32
@@ -70,12 +69,14 @@ static const uint8_t BUTTON_EVENT_LONG_TRIPLE_PRESS = 0x06;
 static const uint8_t BUTTON_EVENT_HOLD_PRESS = 0x80;
 
 // Event structure for sending button and dimmer events
-// Packed to 32 bits for efficient storage and passing
+// Packed to 16 bits for efficient storage and passing
 struct BTHomeEvent {
   uint8_t object_id;  // BTHome object ID (0x3A for button, 0x3C for dimmer)
-  uint8_t data;       // Event data (button action or dimmer steps)
-  uint16_t padding;   // Padding for 32-bit alignment
-};
+  union {
+    uint8_t event;    // Button event type (for readability)
+    int8_t step;      // Dimmer step (signed, for readability)
+  };
+} __attribute__((packed));
 
 #ifdef USE_SENSOR
 struct SensorMeasurement {
@@ -256,12 +257,12 @@ template<typename... Ts> class ButtonEventAction : public Action<Ts...>, public 
 template<typename... Ts> class DimEventAction : public Action<Ts...>, public Parented<BTHome> {
  public:
   TEMPLATABLE_VALUE(uint8_t, index)
-  TEMPLATABLE_VALUE(int8_t, action)
+  TEMPLATABLE_VALUE(int8_t, step)
 
   void play(Ts... x) override {
     uint8_t idx = this->index_.value(x...);
-    int8_t act = this->action_.value(x...);
-    this->parent_->send_dim_event(idx, act);
+    int8_t stp = this->step_.value(x...);
+    this->parent_->send_dim_event(idx, stp);
   }
 };
 

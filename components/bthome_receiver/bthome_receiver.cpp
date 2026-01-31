@@ -842,13 +842,16 @@ void BTHomeDevice::parse_measurements_(const uint8_t *data, size_t len) {
 
     if (object_id == OBJECT_ID_DIMMER) {
       // Dimmer event: object_id(1) + steps(1, signed)
+      // Per BTHome v2 spec: Multiple dimmers are represented by multiple sequential 0x3C objects
+      // The order of 0x3C objects determines dimmer index (0=first, 1=second, etc.)
       if (pos + 1 > len) {
         ESP_LOGW(TAG, "Incomplete dimmer event");
         break;
       }
       int8_t steps = static_cast<int8_t>(data[pos++]);
-      ESP_LOGV(TAG, "Dimmer event: steps=%d", steps);
-      this->handle_dimmer_event_(steps);
+      uint8_t dimmer_index = current_index;  // Use sequential index based on order
+      ESP_LOGV(TAG, "Dimmer event: index=%d, steps=%d", dimmer_index, steps);
+      this->handle_dimmer_event_(dimmer_index, steps);
       continue;
     }
 
@@ -1024,7 +1027,7 @@ void BTHomeDevice::handle_button_event_(uint8_t button_index, uint8_t event_type
   }
 }
 
-void BTHomeDevice::handle_dimmer_event_(int8_t steps) {
+void BTHomeDevice::handle_dimmer_event_(uint8_t dimmer_index, int8_t steps) {
   for (auto *trigger : this->dimmer_triggers_) {
     trigger->trigger(steps);
   }
