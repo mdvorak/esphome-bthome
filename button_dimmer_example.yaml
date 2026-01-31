@@ -52,10 +52,8 @@ binary_sensor:
     on_press:
       then:
         - logger.log: "Button 0 pressed - sending BTHome button event"
-        # Using the new bthome.button_event action
-        - bthome.button_event:
-            index: 0
-            action: 0x01  # BUTTON_EVENT_PRESS
+        # Use bthome.button_event action in shortcut form
+        - bthome.button_event: press
 
     on_multi_click:
       - timing:
@@ -65,10 +63,11 @@ binary_sensor:
           - OFF for at least 0.2s
         then:
           - logger.log: "Button 0 double press"
-          # Using the new bthome.button_event action
+          # Use bthome.button_event action with lambda
           - bthome.button_event:
               index: 0
-              action: 0x02  # BUTTON_EVENT_DOUBLE_PRESS
+              action: !lambda |-
+                return esphome::bthome::BUTTON_EVENT_DOUBLE_PRESS;
 
   - platform: gpio
     pin:
@@ -81,10 +80,10 @@ binary_sensor:
     on_press:
       then:
         - logger.log: "Button 1 pressed"
-        # Using the new bthome.button_event action
+        # Use bthome.button_event action
         - bthome.button_event:
             index: 1
-            action: 0x01  # BUTTON_EVENT_PRESS
+            action: 0x01  # use numeric value
 
 # Example sensor with dimmer control
 sensor:
@@ -94,26 +93,13 @@ sensor:
     pin_a: GPIO16
     pin_b: GPIO17
     on_clockwise:
-      - bthome.dim_event:
-          index: 0
-          steps: 1
+      # Shortcut form for dimmer event
+      - bthome.dim_event: 1
     on_anticlockwise:
+      # Full mapping for dimmer event
       - bthome.dim_event:
           index: 0
           steps: -1
-
-# Button event type constants (BTHome v2 spec):
-# BUTTON_EVENT_NONE           = 0x00  # Special: no event (for multi-button advertisements)
-# BUTTON_EVENT_PRESS          = 0x01  # Single press
-# BUTTON_EVENT_DOUBLE_PRESS   = 0x02  # Double press
-# BUTTON_EVENT_TRIPLE_PRESS   = 0x03  # Triple press
-# BUTTON_EVENT_LONG_PRESS     = 0x04  # Long press
-# BUTTON_EVENT_LONG_DOUBLE_PRESS = 0x05  # Long double press
-# BUTTON_EVENT_LONG_TRIPLE_PRESS = 0x06  # Long triple press
-# BUTTON_EVENT_HOLD_PRESS     = 0x80  # Hold/continuous press (now works for any button!)
-#
-# Examples:
-#   Single button 0 press:           send_button_event(0, 0x01)
-#   Single button 1 double press:    send_button_event(1, 0x02)
-#   Button 0 press + Button 1 long:  send_button_events({0x01, 0x04})
-#   Only button 1 press:             send_button_events({0x00, 0x01})
+      # Test with lambda too (will overwrite previous)
+      - bthome.dim_event:
+          steps: !lambda return -1;

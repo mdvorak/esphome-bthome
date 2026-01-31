@@ -57,7 +57,8 @@ CONF_ACTION = "action"
 CONF_STEPS = "steps"
 CONF_MAX_EVENTS = "max_events"
 
-cv_int8_t = cv.int_range(min=-128, max=127)
+int8_t = cv.int_range(min=-128, max=127)
+int8 = cg.global_ns.class_("int8_t")
 
 # =============================================================================
 # BTHome v2 Sensor Object IDs
@@ -71,63 +72,63 @@ cv_int8_t = cv.int_range(min=-128, max=127)
 # =============================================================================
 SENSOR_TYPES = {
     # Basic sensors
-    "packet_id": (0x00, 1, False, 1),           # uint8, used for deduplication
-    "battery": (0x01, 1, False, 1),             # uint8, 1%
-    "temperature": (0x02, 2, True, 0.01),       # sint16, 0.01°C
-    "humidity": (0x03, 2, False, 0.01),         # uint16, 0.01%
-    "pressure": (0x04, 3, False, 0.01),         # uint24, 0.01 hPa
-    "illuminance": (0x05, 3, False, 0.01),      # uint24, 0.01 lux
-    "mass_kg": (0x06, 2, False, 0.01),          # uint16, 0.01 kg
-    "mass_lb": (0x07, 2, False, 0.01),          # uint16, 0.01 lb
-    "dewpoint": (0x08, 2, True, 0.01),          # sint16, 0.01°C
-    "count_uint8": (0x09, 1, False, 1),         # uint8
-    "energy": (0x0A, 3, False, 0.001),          # uint24, 0.001 kWh
-    "power": (0x0B, 3, False, 0.01),            # uint24, 0.01 W
-    "voltage": (0x0C, 2, False, 0.001),         # uint16, 0.001 V
-    "pm2_5": (0x0D, 2, False, 1),               # uint16, 1 µg/m³
-    "pm10": (0x0E, 2, False, 1),                # uint16, 1 µg/m³
-    "co2": (0x12, 2, False, 1),                 # uint16, 1 ppm
-    "tvoc": (0x13, 2, False, 1),                # uint16, 1 µg/m³
-    "moisture": (0x14, 2, False, 0.01),         # uint16, 0.01%
-    "humidity_uint8": (0x2E, 1, False, 1),      # uint8, 1%
-    "moisture_uint8": (0x2F, 1, False, 1),      # uint8, 1%
+    "packet_id": (0x00, 1, False, 1),  # uint8, used for deduplication
+    "battery": (0x01, 1, False, 1),  # uint8, 1%
+    "temperature": (0x02, 2, True, 0.01),  # sint16, 0.01°C
+    "humidity": (0x03, 2, False, 0.01),  # uint16, 0.01%
+    "pressure": (0x04, 3, False, 0.01),  # uint24, 0.01 hPa
+    "illuminance": (0x05, 3, False, 0.01),  # uint24, 0.01 lux
+    "mass_kg": (0x06, 2, False, 0.01),  # uint16, 0.01 kg
+    "mass_lb": (0x07, 2, False, 0.01),  # uint16, 0.01 lb
+    "dewpoint": (0x08, 2, True, 0.01),  # sint16, 0.01°C
+    "count_uint8": (0x09, 1, False, 1),  # uint8
+    "energy": (0x0A, 3, False, 0.001),  # uint24, 0.001 kWh
+    "power": (0x0B, 3, False, 0.01),  # uint24, 0.01 W
+    "voltage": (0x0C, 2, False, 0.001),  # uint16, 0.001 V
+    "pm2_5": (0x0D, 2, False, 1),  # uint16, 1 µg/m³
+    "pm10": (0x0E, 2, False, 1),  # uint16, 1 µg/m³
+    "co2": (0x12, 2, False, 1),  # uint16, 1 ppm
+    "tvoc": (0x13, 2, False, 1),  # uint16, 1 µg/m³
+    "moisture": (0x14, 2, False, 0.01),  # uint16, 0.01%
+    "humidity_uint8": (0x2E, 1, False, 1),  # uint8, 1%
+    "moisture_uint8": (0x2F, 1, False, 1),  # uint8, 1%
 
     # Extended sensors
-    "count_uint16": (0x3D, 2, False, 1),        # uint16
-    "count_uint32": (0x3E, 4, False, 1),        # uint32
-    "rotation": (0x3F, 2, True, 0.1),           # sint16, 0.1°
-    "distance_mm": (0x40, 2, False, 1),         # uint16, 1 mm
-    "distance_m": (0x41, 2, False, 0.1),        # uint16, 0.1 m
-    "duration": (0x42, 3, False, 0.001),        # uint24, 0.001 s
-    "current": (0x43, 2, False, 0.001),         # uint16, 0.001 A
-    "speed": (0x44, 2, False, 0.01),            # uint16, 0.01 m/s
-    "temperature_01": (0x45, 2, True, 0.1),     # sint16, 0.1°C
-    "uv_index": (0x46, 1, False, 0.1),          # uint8, 0.1
-    "volume_l_01": (0x47, 2, False, 0.1),       # uint16, 0.1 L
-    "volume_ml": (0x48, 2, False, 1),           # uint16, 1 mL
+    "count_uint16": (0x3D, 2, False, 1),  # uint16
+    "count_uint32": (0x3E, 4, False, 1),  # uint32
+    "rotation": (0x3F, 2, True, 0.1),  # sint16, 0.1°
+    "distance_mm": (0x40, 2, False, 1),  # uint16, 1 mm
+    "distance_m": (0x41, 2, False, 0.1),  # uint16, 0.1 m
+    "duration": (0x42, 3, False, 0.001),  # uint24, 0.001 s
+    "current": (0x43, 2, False, 0.001),  # uint16, 0.001 A
+    "speed": (0x44, 2, False, 0.01),  # uint16, 0.01 m/s
+    "temperature_01": (0x45, 2, True, 0.1),  # sint16, 0.1°C
+    "uv_index": (0x46, 1, False, 0.1),  # uint8, 0.1
+    "volume_l_01": (0x47, 2, False, 0.1),  # uint16, 0.1 L
+    "volume_ml": (0x48, 2, False, 1),  # uint16, 1 mL
     "volume_flow_rate": (0x49, 2, False, 0.001),  # uint16, 0.001 m³/hr
-    "voltage_01": (0x4A, 2, False, 0.1),        # uint16, 0.1 V
-    "gas": (0x4B, 3, False, 0.001),             # uint24, 0.001 m³
-    "gas_uint32": (0x4C, 4, False, 0.001),      # uint32, 0.001 m³
-    "energy_uint32": (0x4D, 4, False, 0.001),   # uint32, 0.001 kWh
-    "volume_l": (0x4E, 4, False, 0.001),        # uint32, 0.001 L
-    "water": (0x4F, 4, False, 0.001),           # uint32, 0.001 L
-    "timestamp": (0x50, 4, False, 1),           # uint32, seconds since epoch
-    "acceleration": (0x51, 2, False, 0.001),    # uint16, 0.001 m/s²
-    "gyroscope": (0x52, 2, False, 0.001),       # uint16, 0.001 °/s
+    "voltage_01": (0x4A, 2, False, 0.1),  # uint16, 0.1 V
+    "gas": (0x4B, 3, False, 0.001),  # uint24, 0.001 m³
+    "gas_uint32": (0x4C, 4, False, 0.001),  # uint32, 0.001 m³
+    "energy_uint32": (0x4D, 4, False, 0.001),  # uint32, 0.001 kWh
+    "volume_l": (0x4E, 4, False, 0.001),  # uint32, 0.001 L
+    "water": (0x4F, 4, False, 0.001),  # uint32, 0.001 L
+    "timestamp": (0x50, 4, False, 1),  # uint32, seconds since epoch
+    "acceleration": (0x51, 2, False, 0.001),  # uint16, 0.001 m/s²
+    "gyroscope": (0x52, 2, False, 0.001),  # uint16, 0.001 °/s
     "volume_storage": (0x55, 4, False, 0.001),  # uint32, 0.001 L
-    "conductivity": (0x56, 2, False, 1),        # uint16, 1 µS/cm
-    "temperature_sint8": (0x57, 1, True, 1),    # sint8, 1°C
+    "conductivity": (0x56, 2, False, 1),  # uint16, 1 µS/cm
+    "temperature_sint8": (0x57, 1, True, 1),  # sint8, 1°C
     "temperature_sint8_035": (0x58, 1, True, 0.35),  # sint8, 0.35°C
-    "count_sint8": (0x59, 1, True, 1),          # sint8
-    "count_sint16": (0x5A, 2, True, 1),         # sint16
-    "count_sint32": (0x5B, 4, True, 1),         # sint32
-    "power_sint32": (0x5C, 4, True, 0.01),      # sint32, 0.01 W
-    "current_sint16": (0x5D, 2, True, 0.001),   # sint16, 0.001 A
-    "direction": (0x5E, 2, False, 0.01),        # uint16, 0.01°
-    "precipitation": (0x5F, 2, False, 0.1),     # uint16, 0.1 mm
-    "channel": (0x60, 1, False, 1),             # uint8
-    "rotational_speed": (0x61, 2, False, 1),    # uint16, 1 rpm
+    "count_sint8": (0x59, 1, True, 1),  # sint8
+    "count_sint16": (0x5A, 2, True, 1),  # sint16
+    "count_sint32": (0x5B, 4, True, 1),  # sint32
+    "power_sint32": (0x5C, 4, True, 0.01),  # sint32, 0.01 W
+    "current_sint16": (0x5D, 2, True, 0.001),  # sint16, 0.001 A
+    "direction": (0x5E, 2, False, 0.01),  # uint16, 0.01°
+    "precipitation": (0x5F, 2, False, 0.1),  # uint16, 0.1 mm
+    "channel": (0x60, 1, False, 1),  # uint8
+    "rotational_speed": (0x61, 2, False, 1),  # uint16, 1 rpm
 }
 
 # =============================================================================
@@ -137,34 +138,34 @@ SENSOR_TYPES = {
 # All binary sensors are uint8: 0x00 = off/false, 0x01 = on/true
 # =============================================================================
 BINARY_SENSOR_TYPES = {
-    "generic_boolean": 0x0F,    # generic on/off
-    "power": 0x10,              # power on/off
-    "opening": 0x11,            # open/closed
-    "battery_low": 0x15,        # battery normal/low
-    "battery_charging": 0x16,   # not charging/charging
-    "carbon_monoxide": 0x17,    # CO not detected/detected
-    "cold": 0x18,               # normal/cold
-    "connectivity": 0x19,       # disconnected/connected
-    "door": 0x1A,               # closed/open
-    "garage_door": 0x1B,        # closed/open
-    "gas": 0x1C,                # clear/detected
-    "heat": 0x1D,               # normal/hot
-    "light": 0x1E,              # no light/light detected
-    "lock": 0x1F,               # locked/unlocked
-    "moisture_binary": 0x20,    # dry/wet
-    "motion": 0x21,             # clear/detected
-    "moving": 0x22,             # not moving/moving
-    "occupancy": 0x23,          # clear/detected
-    "plug": 0x24,               # unplugged/plugged in
-    "presence": 0x25,           # away/home
-    "problem": 0x26,            # ok/problem
-    "running": 0x27,            # not running/running
-    "safety": 0x28,             # unsafe/safe
-    "smoke": 0x29,              # clear/detected
-    "sound": 0x2A,              # clear/detected
-    "tamper": 0x2B,             # off/on
-    "vibration": 0x2C,          # clear/detected
-    "window": 0x2D,             # closed/open
+    "generic_boolean": 0x0F,  # generic on/off
+    "power": 0x10,  # power on/off
+    "opening": 0x11,  # open/closed
+    "battery_low": 0x15,  # battery normal/low
+    "battery_charging": 0x16,  # not charging/charging
+    "carbon_monoxide": 0x17,  # CO not detected/detected
+    "cold": 0x18,  # normal/cold
+    "connectivity": 0x19,  # disconnected/connected
+    "door": 0x1A,  # closed/open
+    "garage_door": 0x1B,  # closed/open
+    "gas": 0x1C,  # clear/detected
+    "heat": 0x1D,  # normal/hot
+    "light": 0x1E,  # no light/light detected
+    "lock": 0x1F,  # locked/unlocked
+    "moisture_binary": 0x20,  # dry/wet
+    "motion": 0x21,  # clear/detected
+    "moving": 0x22,  # not moving/moving
+    "occupancy": 0x23,  # clear/detected
+    "plug": 0x24,  # unplugged/plugged in
+    "presence": 0x25,  # away/home
+    "problem": 0x26,  # ok/problem
+    "running": 0x27,  # not running/running
+    "safety": 0x28,  # unsafe/safe
+    "smoke": 0x29,  # clear/detected
+    "sound": 0x2A,  # clear/detected
+    "tamper": 0x2B,  # off/on
+    "vibration": 0x2C,  # clear/detected
+    "window": 0x2D,  # closed/open
 }
 
 # TX Power levels for ESP32 (maps dBm to esp_power_level_t enum value)
@@ -176,6 +177,18 @@ ESP32_TX_POWER_LEVELS = {
 NRF52_TX_POWER_LEVELS = {
     -40: -40, -20: -20, -16: -16, -12: -12, -8: -8, -4: -4,
     0: 0, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8,
+}
+
+# Button event types for automation triggers
+BUTTON_EVENT_TYPES = {
+    "none": 0x00,
+    "press": 0x01,
+    "double_press": 0x02,
+    "triple_press": 0x03,
+    "long_press": 0x04,
+    "long_double_press": 0x05,
+    "long_triple_press": 0x06,
+    "hold_press": 0x80,
 }
 
 
@@ -214,6 +227,21 @@ def validate_encryption_key(value):
     except ValueError as e:
         raise cv.Invalid("Encryption key must be valid hexadecimal") from e
     return value.lower()
+
+
+def button_event_type(value):
+    """Validator that accepts either a named button action (case-insensitive,
+    underscores allowed) and converts it to its numeric uint8 value, or falls
+    back to validating the provided numeric value as uint8.
+    """
+    # If the user provided a string, try to map it to a known enum name.
+    if isinstance(value, str):
+        key = value.lower()
+        if key in BUTTON_EVENT_TYPES:
+            return cv.uint8_t(BUTTON_EVENT_TYPES[key])
+
+    # Otherwise validate as an uint8 literal (will raise on invalid input).
+    return cv.uint8_t(value)
 
 
 def _final_validate(config):
@@ -284,7 +312,7 @@ async def to_code(config):
     cg.add_define("BTHOME_MAX_BINARY_MEASUREMENTS", num_binary_sensors)
     cg.add_define("BTHOME_MAX_ADV_PACKETS", max_packets)
     cg.add_define("BTHOME_MAX_EVENTS", max_events)
-    
+
     # Define BTHOME_USE_EVENTS if max_events is above zero
     if max_events > 0:
         cg.add_define("BTHOME_USE_EVENTS")
@@ -307,7 +335,7 @@ async def to_code(config):
 
     if CONF_ENCRYPTION_KEY in config:
         key = config[CONF_ENCRYPTION_KEY]
-        key_bytes = [cg.RawExpression(f"0x{key[i:i+2]}") for i in range(0, len(key), 2)]
+        key_bytes = [cg.RawExpression(f"0x{key[i:i + 2]}") for i in range(0, len(key), 2)]
         key_array = cg.RawExpression(f"std::array<uint8_t, 16>{{{', '.join(str(b) for b in key_bytes)}}}")
         cg.add(var.set_encryption_key(key_array))
 
@@ -381,49 +409,49 @@ async def to_code(config):
 # Actions for sending button and dimmer events
 # =============================================================================
 
-@automation.register_action(
-    "bthome.button_event",
-    ButtonEventAction,
-    cv.Schema(
-        {
-            cv.GenerateID(): cv.use_id(BTHome),
-            cv.Required(CONF_INDEX): cv.templatable(cv.uint8_t),
-            cv.Required(CONF_ACTION): cv.templatable(cv.uint8_t),
-        }
+# Reusable schema for the button_event action so we can validate both the
+# full mapping and a shortcut scalar form.
+BUTTON_EVENT_ACTION = automation.maybe_conf(CONF_ACTION, {
+    cv.GenerateID(): cv.use_id(BTHome),
+    cv.Required(CONF_ACTION): cv.Any(
+        button_event_type,
+        cv.templatable(cv.uint8_t),
     ),
-)
+    cv.Optional(CONF_INDEX, default=0): cv.templatable(cv.uint8_t),
+})
+
+
+@automation.register_action("bthome.button_event", ButtonEventAction, BUTTON_EVENT_ACTION)
 async def button_event_to_code(config, action_id, template_arg, args):
     var = cg.new_Pvariable(action_id, template_arg)
     await cg.register_parented(var, config[CONF_ID])
-    
+
     template_ = await cg.templatable(config[CONF_INDEX], args, cg.uint8)
     cg.add(var.set_index(template_))
-    
+
+    # The schema will convert enum-name strings to numeric values already
+    # (via cv.All + lambda), so just pass the validated value to templatable.
     template_ = await cg.templatable(config[CONF_ACTION], args, cg.uint8)
     cg.add(var.set_action(template_))
-    
+
     return var
 
 
-@automation.register_action(
-    "bthome.dim_event",
-    DimEventAction,
-    cv.Schema(
-        {
-            cv.GenerateID(): cv.use_id(BTHome),
-            cv.Required(CONF_INDEX): cv.templatable(cv.uint8_t),
-            cv.Required(CONF_STEPS): cv.templatable(cv_int8_t),
-        }
-    ),
-)
+DIM_EVENT_ACTION = automation.maybe_conf(CONF_STEPS, {
+    cv.GenerateID(): cv.use_id(BTHome),
+    cv.Required(CONF_STEPS): cv.templatable(int8_t),
+    cv.Optional(CONF_INDEX, default=0): cv.templatable(cv.uint8_t),
+})
+
+@automation.register_action("bthome.dim_event", DimEventAction, DIM_EVENT_ACTION)
 async def dim_event_to_code(config, action_id, template_arg, args):
     var = cg.new_Pvariable(action_id, template_arg)
     await cg.register_parented(var, config[CONF_ID])
-    
+
     template_ = await cg.templatable(config[CONF_INDEX], args, cg.uint8)
     cg.add(var.set_index(template_))
-    
-    template_ = await cg.templatable(config[CONF_STEPS], args, "::int8_t")
+
+    template_ = await cg.templatable(config[CONF_STEPS], args, int8)
     cg.add(var.set_step(template_))
-    
+
     return var
