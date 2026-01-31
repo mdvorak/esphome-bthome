@@ -46,10 +46,10 @@ esp32_ble:
 #
 
 binary_sensor:
-# Button 1 - physical wall switch input (D0/A0)
+# Button 1 - physical wall switch input
 - platform: gpio
   pin:
-    number: GPIO2
+    number: GPIO21
     mode: INPUT_PULLUP
     inverted: true
   id: switch_1
@@ -60,10 +60,10 @@ binary_sensor:
   on_press:
   - switch.toggle: relay_1
 
-# Button 2 - physical wall switch input (D1/A1)
+# Button 2 - physical wall switch input
 - platform: gpio
   pin:
-    number: GPIO3
+    number: GPIO19
     mode: INPUT_PULLUP
     inverted: true
   id: switch_2
@@ -79,14 +79,14 @@ binary_sensor:
 #
 
 switch:
-# Relay 1 - controls load 1 (D2/A2)
+# Relay 1 - controls load 1
 - platform: gpio
   pin: GPIO4
   id: relay_1
   name: "Switch 1"
   restore_mode: RESTORE_DEFAULT_OFF
 
-# Relay 2 - controls load 2 (D3/A3)
+# Relay 2 - controls load 2
 - platform: gpio
   pin: GPIO5
   id: relay_2
@@ -98,14 +98,14 @@ switch:
 #
 
 output:
-# LED 1 - indicates relay 1 state (D4/SDA)
+# LED 1 - indicates relay 1 state
 - platform: gpio
-  pin: GPIO6
+  pin: GPIO18
   id: led_1
 
-# LED 2 - indicates relay 2 state (D5/SCL)
+# LED 2 - indicates relay 2 state
 - platform: gpio
-  pin: GPIO7
+  pin: GPIO0
   id: led_2
 
 # Sync LEDs with relay states

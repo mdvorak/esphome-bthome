@@ -44,6 +44,8 @@
 namespace esphome {
 namespace bthome {
 
+inline constexpr char TAG[] = "bthome";
+
 // BTHome v2 constants
 static const uint16_t BTHOME_SERVICE_UUID = 0xFCD2;
 // Device info byte format: bit 0 = encryption, bit 2 = trigger-based
@@ -68,7 +70,6 @@ static const uint8_t BUTTON_EVENT_LONG_DOUBLE_PRESS = 0x05;
 static const uint8_t BUTTON_EVENT_LONG_TRIPLE_PRESS = 0x06;
 static const uint8_t BUTTON_EVENT_HOLD_PRESS = 0x80;
 
-#ifdef BTHOME_USE_EVENTS
 // Event structure for sending button and dimmer events
 // Packed to 16 bits for efficient storage and passing
 struct BTHomeEvent {
@@ -78,7 +79,6 @@ struct BTHomeEvent {
     int8_t step;      // Dimmer step (0x3C)
   } data;
 } __attribute__((packed));
-#endif
 
 #ifdef USE_SENSOR
 struct SensorMeasurement {
@@ -251,35 +251,59 @@ class BTHome : public Component {
 #endif
 };
 
-#ifdef BTHOME_USE_EVENTS
 // =============================================================================
 // Actions for sending button and dimmer events
 // =============================================================================
 
+#define BTHOME_MAX_EVENTS_ERROR "BTHome events are not enabled. Set bthome.max_events to a value above max index used in your configuration."
+
 template<typename... Ts> class ButtonEventAction : public Action<Ts...>, public Parented<BTHome> {
- public:
-  TEMPLATABLE_VALUE(uint8_t, index)
+protected:
+  TemplatableValue<uint8_t, Ts...> index_{};
   TEMPLATABLE_VALUE(uint8_t, action)
 
+public:
+  template<typename V> void set_index(V index) {
+    if (index >= BTHOME_MAX_EVENTS) {
+      ESP_LOGE(TAG, "Invalid button event index %u, increase bthome.max_events to %u", index, index + 1);
+    }
+    this->index_ = index;
+  }
+
   void play(const Ts &...x) override {
+#ifdef BTHOME_USE_EVENTS
     uint8_t idx = this->index_.value(x...);
     uint8_t act = this->action_.value(x...);
     this->parent_->send_button_event(idx, act);
+#else
+    static_assert(BTHOME_MAX_EVENTS > 0, BTHOME_MAX_EVENTS_ERROR);
+#endif
   }
 };
 
 template<typename... Ts> class DimEventAction : public Action<Ts...>, public Parented<BTHome> {
- public:
-  TEMPLATABLE_VALUE(uint8_t, index)
-  TEMPLATABLE_VALUE(int8_t, step)
+protected:
+ TemplatableValue<uint8_t, Ts...> index_{};
+ TEMPLATABLE_VALUE(int8_t, step)
+
+public:
+  template<typename V> void set_index(V index) {
+    if (index >= BTHOME_MAX_EVENTS) {
+      ESP_LOGE(TAG, "Invalid dimmer event index %u, increase bthome.max_events to %u", index, index + 1);
+    }
+    this->index_ = index;
+  }
 
   void play(const Ts &...x) override {
+#ifdef BTHOME_USE_EVENTS
     uint8_t idx = this->index_.value(x...);
     int8_t stp = this->step_.value(x...);
     this->parent_->send_dim_event(idx, stp);
+#else
+    static_assert(BTHOME_MAX_EVENTS > 0, BTHOME_MAX_EVENTS_ERROR);
+#endif
   }
 };
-#endif
 
 }  // namespace bthome
 }  // namespace esphome
