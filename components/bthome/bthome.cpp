@@ -316,30 +316,30 @@ void BTHome::add_binary_measurement(binary_sensor::BinarySensor *sensor, uint8_t
 #endif
 
 void BTHome::send_button_event(uint8_t button_index, uint8_t event_type) {
-  if (button_index > 15) {
-    ESP_LOGW(TAG, "Button index %d out of range (0-15)", button_index);
-    return;
-  }
-  
   ESP_LOGD(TAG, "Sending button event: index=%d, type=0x%02X", button_index, event_type);
   
-  // Button event data: upper 4 bits = button_index, lower 4 bits = event_type
-  // Note: BUTTON_EVENT_HOLD_PRESS (0x80) doesn't fit this encoding scheme properly
-  // and should be used with button_index=0 only, or transmitted as the raw 0x80 value
-  uint8_t event_data;
-  if (event_type == BUTTON_EVENT_HOLD_PRESS && button_index == 0) {
-    // Special case: hold_press for button 0 is transmitted as raw 0x80
-    event_data = BUTTON_EVENT_HOLD_PRESS;
-  } else if (event_type == BUTTON_EVENT_HOLD_PRESS) {
-    // For other buttons, hold_press encoding is not supported by the current receiver format
-    ESP_LOGW(TAG, "HOLD_PRESS (0x80) with button_index > 0 is not supported by current format");
-    return;
-  } else {
-    // Standard encoding: pack button_index and event_type
-    event_data = (button_index << 4) | (event_type & 0x0F);
+  // Per BTHome v2 spec: Multiple buttons are represented by multiple sequential 0x3A objects
+  // For a single button event at specific index, we need to send (button_index+1) events,
+  // with 0x00 (NONE) for all preceding buttons
+  // See: https://bthome.io/format/ - "Multiple events of the same type"
+  
+  std::vector<uint8_t> events;
+  for (uint8_t i = 0; i <= button_index; i++) {
+    events.push_back(i == button_index ? event_type : BUTTON_EVENT_NONE);
   }
   
-  // Build advertisement with button event
+  this->send_button_events(events);
+}
+
+void BTHome::send_button_events(const std::vector<uint8_t> &event_types) {
+  if (event_types.empty()) {
+    ESP_LOGW(TAG, "No button events to send");
+    return;
+  }
+  
+  ESP_LOGD(TAG, "Sending %d button event(s)", event_types.size());
+  
+  // Build advertisement with button events
   size_t pos = 0;
   
   // Flags AD element
@@ -363,10 +363,19 @@ void BTHome::send_button_event(uint8_t button_index, uint8_t event_type) {
   }
   this->adv_data_[pos++] = device_info;
   
-  // Encode event data
-  size_t event_len = this->encode_event_(this->adv_data_ + pos, MAX_BLE_ADVERTISEMENT_SIZE - pos, 
-                                         OBJECT_ID_BUTTON, &event_data, 1);
-  pos += event_len;
+  // Encode button events sequentially per BTHome spec
+  // Each button is represented by: 0x3A event_type
+  // The order determines button index (0=first, 1=second, etc.)
+  for (size_t i = 0; i < event_types.size(); i++) {
+    uint8_t event_type = event_types[i];
+    size_t event_len = this->encode_event_(this->adv_data_ + pos, MAX_BLE_ADVERTISEMENT_SIZE - pos, 
+                                           OBJECT_ID_BUTTON, &event_type, 1);
+    if (event_len == 0) {
+      ESP_LOGW(TAG, "Not enough space for button event %d, truncating", i);
+      break;
+    }
+    pos += event_len;
+  }
   
   // Set service data length
   this->adv_data_[service_data_len_pos] = (pos - service_data_len_pos - 1);

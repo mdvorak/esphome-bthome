@@ -826,13 +826,15 @@ void BTHomeDevice::parse_measurements_(const uint8_t *data, size_t len) {
     // Handle special types: button, dimmer, text, raw
     if (object_id == OBJECT_ID_BUTTON) {
       // Button event: object_id(1) + event_type(1)
+      // Per BTHome v2 spec: Multiple buttons are represented by multiple sequential 0x3A objects
+      // The order of 0x3A objects determines button index (0=first, 1=second, etc.)
+      // See: https://bthome.io/format/ - "Multiple events of the same type"
       if (pos + 1 > len) {
         ESP_LOGW(TAG, "Incomplete button event");
         break;
       }
-      uint8_t event_data = data[pos++];
-      uint8_t button_index = (event_data >> 4) & 0x0F;  // Upper 4 bits
-      uint8_t event_type = event_data & 0x0F;           // Lower 4 bits
+      uint8_t event_type = data[pos++];
+      uint8_t button_index = current_index;  // Use sequential index based on order
       ESP_LOGV(TAG, "Button event: index=%d, type=0x%02X", button_index, event_type);
       this->handle_button_event_(button_index, event_type);
       continue;

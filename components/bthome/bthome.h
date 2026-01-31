@@ -11,6 +11,7 @@
 #endif
 
 #include <array>
+#include <vector>
 
 // Platform-specific includes
 #ifdef USE_ESP32
@@ -126,6 +127,7 @@ class BTHome : public Component {
 
   // Event methods for button and dimmer events
   void send_button_event(uint8_t button_index, uint8_t event_type);
+  void send_button_events(const std::vector<uint8_t> &event_types);
   void send_dimmer_event(int8_t steps);
 
 #if defined(USE_ESP32) && defined(USE_BTHOME_BLUEDROID)

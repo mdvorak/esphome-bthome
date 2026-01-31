@@ -1,15 +1,18 @@
-# BTHome Button and Dimmer Event Example
+# BTHome Button and Dimmer Event Example (BTHome v2 Spec Compliant)
 # Demonstrates how to send button and dimmer events via BLE using BTHome v2 protocol
 # Compatible with Home Assistant's BTHome integration
+#
+# BTHome v2 Spec: https://bthome.io/format/
+# Multiple buttons are represented by multiple sequential 0x3A objects
+# The order determines button index (0=first, 1=second, etc.)
 
 esphome:
   name: bthome-button-dimmer
   friendly_name: BTHome Button Dimmer
-  # Example: Lambda to send events
   on_boot:
     - priority: -100
       then:
-        - logger.log: "BTHome ready. Use lambdas to call send_button_event() and send_dimmer_event()"
+        - logger.log: "BTHome ready. Spec-compliant button event format."
 
 esp32:
   board: esp32dev
@@ -48,13 +51,13 @@ binary_sensor:
     mode:
       input: true
       pullup: true
-  name: "Physical Button"
+  name: "Button 0"
   on_press:
     then:
-      - logger.log: "Button pressed - sending BTHome button event"
+      - logger.log: "Button 0 pressed - sending BTHome button event"
       - lambda: |-
-          // Send button event: button_index=0, event_type=BUTTON_EVENT_PRESS (0x01)
-          id(bthome_broadcaster)->send_button_event(0, 0x01);
+          // Send single button event using spec-compliant format
+          id(bthome_broadcaster)->send_button_event(0, 0x01);  // button 0, press
 
   on_multi_click:
     - timing:
@@ -63,10 +66,24 @@ binary_sensor:
         - ON for at most 1s
         - OFF for at least 0.2s
       then:
-        - logger.log: "Double press detected - sending BTHome double press event"
+        - logger.log: "Button 0 double press"
         - lambda: |-
-            // Send double press event: button_index=0, event_type=BUTTON_EVENT_DOUBLE_PRESS (0x02)
-            id(bthome_broadcaster)->send_button_event(0, 0x02);
+            id(bthome_broadcaster)->send_button_event(0, 0x02);  // button 0, double_press
+
+- platform: gpio
+  pin:
+    number: GPIO1
+    inverted: true
+    mode:
+      input: true
+      pullup: true
+  name: "Button 1"
+  on_press:
+    then:
+      - logger.log: "Button 1 pressed"
+      - lambda: |-
+          // Send button event for button 1
+          id(bthome_broadcaster)->send_button_event(1, 0x01);
 
 # Example sensor with dimmer control
 sensor:
@@ -77,16 +94,11 @@ sensor:
   pin_b: GPIO3
   on_value:
     then:
-      - logger.log:
-          format: "Rotary position: %.0f - sending dimmer event"
-          args: ['x']
       - lambda: |-
-          // Calculate steps from encoder change
           static float last_value = 0;
           float delta = x - last_value;
           last_value = x;
           
-          // Send dimmer event with steps (positive=increase, negative=decrease)
           int8_t steps = (int8_t)delta;
           if (steps != 0) {
             id(bthome_broadcaster)->send_dimmer_event(steps);
@@ -101,26 +113,48 @@ api:
         event_type: int
       then:
         - logger.log:
-            format: "API call: sending button event index=%d type=%d"
+            format: "API: sending button event index=%d type=0x%02X"
             args: ['button_index', 'event_type']
         - lambda: |-
             id(bthome_broadcaster)->send_button_event(button_index, event_type);
+    
+    - service: send_multiple_button_events
+      variables:
+        event0: int
+        event1: int
+      then:
+        - logger.log:
+            format: "API: sending multi-button events [0x%02X, 0x%02X]"
+            args: ['event0', 'event1']
+        - lambda: |-
+            // Send multiple button events in one advertisement
+            // Per BTHome spec: 0x3A event0 0x3A event1
+            std::vector<uint8_t> events = {(uint8_t)event0, (uint8_t)event1};
+            id(bthome_broadcaster)->send_button_events(events);
     
     - service: send_dimmer_event
       variables:
         steps: int
       then:
         - logger.log:
-            format: "API call: sending dimmer event steps=%d"
+            format: "API: sending dimmer event steps=%d"
             args: ['steps']
         - lambda: |-
             id(bthome_broadcaster)->send_dimmer_event(steps);
 
-# Button event type constants:
-# BUTTON_EVENT_PRESS          = 0x01
-# BUTTON_EVENT_DOUBLE_PRESS   = 0x02
-# BUTTON_EVENT_TRIPLE_PRESS   = 0x03
-# BUTTON_EVENT_LONG_PRESS     = 0x04
-# BUTTON_EVENT_LONG_DOUBLE_PRESS = 0x05
-# BUTTON_EVENT_LONG_TRIPLE_PRESS = 0x06
-# BUTTON_EVENT_HOLD_PRESS     = 0x80  # Note: Only supported for button_index=0
+# Button event type constants (BTHome v2 spec):
+# BUTTON_EVENT_NONE           = 0x00  # Special: no event (for multi-button advertisements)
+# BUTTON_EVENT_PRESS          = 0x01  # Single press
+# BUTTON_EVENT_DOUBLE_PRESS   = 0x02  # Double press
+# BUTTON_EVENT_TRIPLE_PRESS   = 0x03  # Triple press
+# BUTTON_EVENT_LONG_PRESS     = 0x04  # Long press
+# BUTTON_EVENT_LONG_DOUBLE_PRESS = 0x05  # Long double press
+# BUTTON_EVENT_LONG_TRIPLE_PRESS = 0x06  # Long triple press
+# BUTTON_EVENT_HOLD_PRESS     = 0x80  # Hold/continuous press (now works for any button!)
+#
+# Examples:
+#   Single button 0 press:           send_button_event(0, 0x01)
+#   Single button 1 double press:    send_button_event(1, 0x02)
+#   Button 0 press + Button 1 long:  send_button_events({0x01, 0x04})
+#   Only button 1 press:             send_button_events({0x00, 0x01})
+
