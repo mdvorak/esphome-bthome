@@ -54,7 +54,7 @@ CONF_RETRANSMIT_COUNT = "retransmit_count"
 CONF_RETRANSMIT_INTERVAL = "retransmit_interval"
 CONF_INDEX = "index"
 CONF_ACTION = "action"
-CONF_STEP = "step"
+CONF_STEPS = "steps"
 CONF_MAX_EVENTS = "max_events"
 
 # =============================================================================
@@ -243,7 +243,7 @@ CONFIG_SCHEMA = cv.All(
                 cv.positive_time_period_milliseconds,
                 cv.Range(min=TimePeriod(milliseconds=100), max=TimePeriod(milliseconds=2000)),
             ),
-            cv.Optional(CONF_MAX_EVENTS, default=4): cv.int_range(min=1, max=16),
+            cv.Optional(CONF_MAX_EVENTS, default=0): cv.int_range(min=0, max=16),
             cv.Optional(CONF_SENSORS): cv.ensure_list(
                 cv.Schema(
                     {
@@ -275,13 +275,17 @@ async def to_code(config):
     num_sensors = max(1, len(config.get(CONF_SENSORS, [])))
     num_binary_sensors = max(1, len(config.get(CONF_BINARY_SENSORS, [])))
     max_packets = max(1, num_sensors + num_binary_sensors)
-    max_events = config.get(CONF_MAX_EVENTS, 8)
+    max_events = config.get(CONF_MAX_EVENTS)
 
     # Add defines for compile-time sizes
     cg.add_define("BTHOME_MAX_MEASUREMENTS", num_sensors)
     cg.add_define("BTHOME_MAX_BINARY_MEASUREMENTS", num_binary_sensors)
     cg.add_define("BTHOME_MAX_ADV_PACKETS", max_packets)
     cg.add_define("BTHOME_MAX_EVENTS", max_events)
+    
+    # Define BTHOME_USE_EVENTS if max_events is above zero
+    if max_events > 0:
+        cg.add_define("BTHOME_USE_EVENTS")
 
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
@@ -406,7 +410,7 @@ async def button_event_to_code(config, action_id, template_arg, args):
         {
             cv.GenerateID(): cv.use_id(BTHome),
             cv.Required(CONF_INDEX): cv.templatable(cv.uint8_t),
-            cv.Required(CONF_STEP): cv.templatable(cv.int8_t),
+            cv.Required(CONF_STEPS): cv.templatable(cv.int8_t),
         }
     ),
 )
@@ -417,7 +421,7 @@ async def dim_event_to_code(config, action_id, template_arg, args):
     template_ = await cg.templatable(config[CONF_INDEX], args, cg.uint8)
     cg.add(var.set_index(template_))
     
-    template_ = await cg.templatable(config[CONF_STEP], args, cg.int8)
+    template_ = await cg.templatable(config[CONF_STEPS], args, cg.int8)
     cg.add(var.set_step(template_))
     
     return var

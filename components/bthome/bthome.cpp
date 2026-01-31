@@ -249,7 +249,11 @@ void BTHome::loop() {
   }
 
   // Handle immediate advertising requests (sensors or events)
-  if (this->immediate_advertising_pending_ || this->immediate_event_advertising_pending_) {
+  if (this->immediate_advertising_pending_
+#ifdef BTHOME_USE_EVENTS
+      || this->immediate_event_count_ > 0
+#endif
+  ) {
     this->stop_advertising_();
     this->build_advertisement_data_();
     this->start_advertising_();
@@ -314,6 +318,7 @@ void BTHome::add_binary_measurement(binary_sensor::BinarySensor *sensor, uint8_t
 }
 #endif
 
+#ifdef BTHOME_USE_EVENTS
 void BTHome::send_events(const BTHomeEvent *events, size_t count) {
   if (events == nullptr || count == 0) {
     ESP_LOGW(TAG, "No events to send");
@@ -340,11 +345,11 @@ void BTHome::send_button_event(uint8_t index, uint8_t action) {
   // with 0x00 (NONE) for all preceding buttons
   // See: https://bthome.io/format/ - "Multiple events of the same type"
   
-  BTHomeEvent events[BTHOME_MAX_EVENTS];
+  BTHomeEvent events[BTHOME_MAX_EVENTS] = {0};
   for (uint8_t i = 0; i <= index; i++) {
     events[i].object_id = OBJECT_ID_BUTTON;
-    events[i].event = (i == index) ? action : BUTTON_EVENT_NONE;
   }
+  events[index].data.event = action;
   
   this->send_events(events, index + 1);
 }
@@ -361,16 +366,41 @@ void BTHome::send_dim_event(uint8_t index, int8_t step) {
   // For dimmer events, we follow the same pattern as buttons
   // Multiple dimmers are represented by multiple sequential 0x3C objects
   
-  BTHomeEvent events[BTHOME_MAX_EVENTS];
+  BTHomeEvent events[BTHOME_MAX_EVENTS] = {0};
   for (uint8_t i = 0; i <= index; i++) {
     events[i].object_id = OBJECT_ID_DIMMER;
-    events[i].step = (i == index) ? step : 0;
   }
+  events[index].data.step = step;
   
   this->send_events(events, index + 1);
 }
 
+void BTHome::trigger_immediate_event_advertising_(const BTHomeEvent *events, size_t count) {
+  if (events == nullptr || count == 0 || count > BTHOME_MAX_EVENTS) {
+    ESP_LOGW(TAG, "Invalid event count for immediate advertising");
+    return;
+  }
+  
+  // Store event data for use in build_advertisement_data_
+  memcpy(this->immediate_event_data_, events, count * sizeof(BTHomeEvent));
+  this->immediate_event_count_ = count;
+  
+#ifdef USE_ESP32
+  this->enable_loop();
+#endif
+}
+#endif
+
 void BTHome::trigger_immediate_sensor_advertising_(uint8_t measurement_index, bool is_binary) {
+  this->immediate_advertising_pending_ = true;
+  this->immediate_adv_measurement_index_ = measurement_index;
+  this->immediate_adv_is_binary_ = is_binary;
+#ifdef USE_ESP32
+  this->enable_loop();
+#endif
+}
+
+void BTHome::build_advertisement_data_() {
   this->immediate_advertising_pending_ = true;
   this->immediate_adv_measurement_index_ = measurement_index;
   this->immediate_adv_is_binary_ = is_binary;
@@ -386,11 +416,8 @@ void BTHome::trigger_immediate_event_advertising_(const BTHomeEvent *events, siz
   }
   
   // Store event data for use in build_advertisement_data_
-  for (size_t i = 0; i < count; i++) {
-    this->immediate_event_data_[i] = events[i];
-  }
+  memcpy(this->immediate_event_data_, events, count * sizeof(BTHomeEvent));
   this->immediate_event_count_ = count;
-  this->immediate_event_advertising_pending_ = true;
   
 #ifdef USE_ESP32
   this->enable_loop();
@@ -431,21 +458,25 @@ void BTHome::build_advertisement_data_() {
   this->adv_data_[pos++] = 0x00;  // Object ID: packet_id
   this->adv_data_[pos++] = this->packet_id_;
 
+#ifdef BTHOME_USE_EVENTS
   // Handle immediate event advertising
-  if (this->immediate_event_advertising_pending_) {
+  if (this->immediate_event_count_ > 0) {
     for (size_t i = 0; i < this->immediate_event_count_; i++) {
       const BTHomeEvent &event = this->immediate_event_data_[i];
       size_t event_len = this->encode_event_(this->adv_data_ + pos, MAX_BLE_ADVERTISEMENT_SIZE - pos, 
-                                             event.object_id, reinterpret_cast<const uint8_t*>(&event.event), 1);
+                                             event.object_id, reinterpret_cast<const uint8_t*>(&event.data.event), 1);
       if (event_len == 0) {
         ESP_LOGW(TAG, "Not enough space for event %d in advertisement", i);
         break;
       }
       pos += event_len;
     }
+    // Clear event count after encoding
+    this->immediate_event_count_ = 0;
   }
+#endif
   // Handle immediate sensor advertising - single sensor only
-  else if (this->immediate_advertising_pending_) {
+  if (this->immediate_advertising_pending_) {
 #ifdef USE_BINARY_SENSOR
     if (this->immediate_adv_is_binary_) {
       auto &measurement = this->binary_measurements_[this->immediate_adv_measurement_index_];
@@ -463,6 +494,8 @@ void BTHome::build_advertisement_data_() {
       }
     }
 #endif
+    // Clear sensor flag after encoding
+    this->immediate_advertising_pending_ = false;
   } else {
     // Normal: add measurements with rotation (for splitting across packets)
 #ifdef USE_SENSOR
@@ -555,10 +588,6 @@ void BTHome::build_advertisement_data_() {
   // Note: Device name is in scan response, not advertisement (to save space for sensor data)
 
   this->adv_data_len_ = pos;
-
-  // Clear immediate advertising flags
-  this->immediate_advertising_pending_ = false;
-  this->immediate_event_advertising_pending_ = false;
 
   // Increment packet_id for next data change (wraps at 255)
   this->packet_id_++;

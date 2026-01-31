@@ -68,15 +68,17 @@ static const uint8_t BUTTON_EVENT_LONG_DOUBLE_PRESS = 0x05;
 static const uint8_t BUTTON_EVENT_LONG_TRIPLE_PRESS = 0x06;
 static const uint8_t BUTTON_EVENT_HOLD_PRESS = 0x80;
 
+#ifdef BTHOME_USE_EVENTS
 // Event structure for sending button and dimmer events
 // Packed to 16 bits for efficient storage and passing
 struct BTHomeEvent {
   uint8_t object_id;  // BTHome object ID (0x3A for button, 0x3C for dimmer)
   union {
-    uint8_t event;    // Button event type (for readability)
-    int8_t step;      // Dimmer step (signed, for readability)
-  };
+    uint8_t event;    // Button event (0x3A)
+    int8_t step;      // Dimmer step (0x3C)
+  } data;
 } __attribute__((packed));
+#endif
 
 #ifdef USE_SENSOR
 struct SensorMeasurement {
@@ -135,10 +137,12 @@ class BTHome : public Component {
   void add_binary_measurement(binary_sensor::BinarySensor *sensor, uint8_t object_id, bool advertise_immediately);
 #endif
 
+#ifdef BTHOME_USE_EVENTS
   // Event methods for button and dimmer events
   void send_events(const BTHomeEvent *events, size_t count);
   void send_button_event(uint8_t index, uint8_t action);
-  void send_dim_event(uint8_t index, int8_t action);
+  void send_dim_event(uint8_t index, int8_t step);
+#endif
 
 #if defined(USE_ESP32) && defined(USE_BTHOME_BLUEDROID)
   void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param) override;
@@ -158,7 +162,9 @@ class BTHome : public Component {
   size_t encode_event_(uint8_t *data, size_t max_len, uint8_t object_id, const uint8_t *event_data, size_t event_data_len);
   bool encrypt_payload_(const uint8_t *plaintext, size_t plaintext_len, uint8_t *ciphertext, size_t *ciphertext_len);
   void trigger_immediate_sensor_advertising_(uint8_t measurement_index, bool is_binary);
+#ifdef BTHOME_USE_EVENTS
   void trigger_immediate_event_advertising_(const BTHomeEvent *events, size_t count);
+#endif
 
   // Measurements storage
 #ifdef USE_SENSOR
@@ -211,10 +217,11 @@ class BTHome : public Component {
   uint8_t immediate_adv_measurement_index_{0};
   bool immediate_adv_is_binary_{false};
   
+#ifdef BTHOME_USE_EVENTS
   // Immediate event advertising
-  bool immediate_event_advertising_pending_{false};
   BTHomeEvent immediate_event_data_[BTHOME_MAX_EVENTS];
   size_t immediate_event_count_{0};
+#endif
 
   // Platform-specific members
 #ifdef USE_ESP32
@@ -244,6 +251,7 @@ class BTHome : public Component {
 #endif
 };
 
+#ifdef BTHOME_USE_EVENTS
 // =============================================================================
 // Actions for sending button and dimmer events
 // =============================================================================
@@ -271,6 +279,7 @@ template<typename... Ts> class DimEventAction : public Action<Ts...>, public Par
     this->parent_->send_dim_event(idx, stp);
   }
 };
+#endif
 
 }  // namespace bthome
 }  // namespace esphome
