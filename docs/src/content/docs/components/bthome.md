@@ -213,16 +213,38 @@ Button events allow you to send various button press types to receivers. The BTH
 
 #### Using the `bthome.button_event` Action
 
-:::note[Event Support Requires Configuration]
-To use `bthome.button_event` and `bthome.dim_event` actions, you must set `max_events` in your `bthome:` configuration. For example:
+:::caution[Event Support Requires `max_events` Configuration]
+To use `bthome.button_event` and `bthome.dim_event` actions, you **must** set `max_events > 0` in your `bthome:` configuration.
 
+Event support is **compile-time gated** by `BTHOME_USE_EVENTS` in the C++ code. Without `max_events` configured, the action classes (`ButtonEventAction`, `DimEventAction`) and methods (`send_button_event`, `send_dim_event`) are not compiled, causing build failures.
+
+**Minimal configuration:**
 ```yaml
 bthome:
-  max_events: 1  # Enable event support (at least 1 required)
+  max_events: 1  # Enable event support (minimum 1 required)
   # ... other config
 ```
 
-Without `max_events > 0`, event actions will fail to compile because event functionality is compile-time gated.
+**Complete example with button:**
+```yaml
+bthome:
+  id: bthome_broadcaster
+  max_events: 2  # Support up to 2 simultaneous events
+  min_interval: 1s
+  max_interval: 5s
+
+binary_sensor:
+  - platform: gpio
+    pin: GPIO0
+    name: "Button"
+    on_press:
+      - bthome.button_event: press
+```
+
+Without `max_events > 0`, you'll get compilation errors like:
+```
+error: 'class esphome::bthome::BTHome' has no member named 'send_button_event'
+```
 :::
 
 The `bthome.button_event` action supports both named event types and numeric values. You can use the shorthand syntax (just the event name/value) or the full syntax with explicit parameters.

@@ -33,11 +33,12 @@ esp32_ble:
 
 # BTHome configuration
 bthome:
+  id: bthome_transmitter
   min_interval: 5s
   max_interval: 10s
   tx_power: 0
   trigger_based: true  # For button/event-based devices
-  max_events: 4
+  max_events: 2
 
 # Example button that triggers BTHome button events using actions
 binary_sensor:
@@ -71,7 +72,7 @@ binary_sensor:
 
   - platform: gpio
     pin:
-      number: GPIO22
+      number: GPIO4
       inverted: true
       mode:
         input: true
@@ -90,8 +91,8 @@ sensor:
   - platform: rotary_encoder
     name: "Rotary Encoder"
     id: rotary
-    pin_a: GPIO16
-    pin_b: GPIO17
+    pin_a: GPIO18
+    pin_b: GPIO19
     on_clockwise:
       # Shortcut form for dimmer event
       - bthome.dim_event: 1

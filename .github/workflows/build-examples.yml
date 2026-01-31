@@ -25,7 +25,7 @@ permissions:
 
 jobs:
   build-esp32:
-    name: Build ${{ matrix.device }} ${{ matrix.config }}
+    name: Build ${{ matrix.config }} for ${{ matrix.device.name }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -37,8 +37,12 @@ jobs:
           - esp32_devkit_basic.yaml
           - button_dimmer_example.yaml
         device:
-          - esp32dev
-          - esp32-c3-devkitm-1
+          - {name: esp32, board: esp32dev}
+          - {name: esp32-c3, board: esp32-c3-devkitm-1}
+          - {name: esp32-s3, board: seeed_xiao_esp32s3}
+        exclude:
+          # Unsupported NimBLE stack on ESP32 DevKit
+          - {config: cpu_temp_esp32_nimble.yaml, device: {name: esp32, board: esp32dev}}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -52,13 +56,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.platformio
-          key: pio-${{ matrix.device }}-${{ hashFiles('components/**') }}
-          restore-keys: pio-${{ matrix.device }}-
+          key: pio-${{ matrix.device.board }}-${{ hashFiles('components/**') }}
+          restore-keys: pio-${{ matrix.device.board }}-
 
       - name: Set ESPHome device
         uses: mikefarah/yq@v4
         with:
-          cmd: yq '.esp32.board = "${{ matrix.device }}"' -i ${{ matrix.config }}
+          cmd: yq '.esp32.board = "${{ matrix.device.board }}"' -i ${{ matrix.config }}
 
       - name: Compile ${{ matrix.config }}
         run: |

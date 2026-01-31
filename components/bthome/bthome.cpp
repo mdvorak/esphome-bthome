@@ -38,8 +38,6 @@
 namespace esphome {
 namespace bthome {
 
-static const char *const TAG = "bthome";
-
 #if defined(USE_ESP32) && defined(USE_BTHOME_NIMBLE)
 // Static instance for NimBLE callbacks
 BTHome *BTHome::instance_ = nullptr;
