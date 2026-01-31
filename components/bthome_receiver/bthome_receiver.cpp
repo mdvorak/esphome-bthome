@@ -346,18 +346,7 @@ void BTHomeReceiverHub::dump_advertisement_(uint64_t address, const uint8_t *dat
       if (pos + 1 > len) break;
       uint8_t event_type = data[pos++];
       char val_str[32];
-      const char *event_name = "unknown";
-      switch (event_type) {
-        case BUTTON_EVENT_NONE: event_name = "none"; break;
-        case BUTTON_EVENT_PRESS: event_name = "press"; break;
-        case BUTTON_EVENT_DOUBLE_PRESS: event_name = "double_press"; break;
-        case BUTTON_EVENT_TRIPLE_PRESS: event_name = "triple_press"; break;
-        case BUTTON_EVENT_LONG_PRESS: event_name = "long_press"; break;
-        case BUTTON_EVENT_LONG_DOUBLE_PRESS: event_name = "long_double_press"; break;
-        case BUTTON_EVENT_LONG_TRIPLE_PRESS: event_name = "long_triple_press"; break;
-        case 0x80: event_name = "hold_press"; break;
-      }
-      snprintf(val_str, sizeof(val_str), "%s=%s", name, event_name);
+      snprintf(val_str, sizeof(val_str), "%s=0x%02X", name, event_type);
       if (!measurements.empty()) measurements += " ";
       measurements += val_str;
       continue;

@@ -283,18 +283,18 @@ sensor:
     id: rotary
     pin_a: GPIO2
     pin_b: GPIO3
-    on_value:
+    on_clockwise:
       then:
-        - lambda: |-
-            static float last_value = 0;
-            float delta = x - last_value;
-            last_value = x;
-            
-            // Send dimmer event: positive=increase, negative=decrease
-            int8_t steps = (int8_t)delta;
-            if (steps != 0) {
-              id(bthome_broadcaster)->send_dimmer_event(steps);
-            }
+        - bthome.dim_event:
+            id: bthome_broadcaster
+            index: 0
+            steps: 1  # Increase
+    on_anticlockwise:
+      then:
+        - bthome.dim_event:
+            id: bthome_broadcaster
+            index: 0
+            steps: -1  # Decrease
 ```
 
 **Event Values:**
