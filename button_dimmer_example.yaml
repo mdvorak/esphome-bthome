@@ -100,6 +100,6 @@ sensor:
       - bthome.dim_event:
           index: 0
           steps: -1
-      # Test with lambda too (will overwrite previous)
+      # Alternative: use lambda syntax for steps (runs after the previous action)
       - bthome.dim_event:
           steps: !lambda return -1;

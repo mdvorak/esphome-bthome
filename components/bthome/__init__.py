@@ -239,6 +239,9 @@ def button_event_type(value):
         key = value.lower()
         if key in BUTTON_EVENT_TYPES:
             return cv.uint8_t(BUTTON_EVENT_TYPES[key])
+        # Provide helpful error for unknown event names
+        supported = ", ".join(sorted(BUTTON_EVENT_TYPES.keys()))
+        raise cv.Invalid(f"Unknown button event type '{value}'. Supported: {supported}")
 
     # Otherwise validate as an uint8 literal (will raise on invalid input).
     return cv.uint8_t(value)
@@ -429,8 +432,7 @@ async def button_event_to_code(config, action_id, template_arg, args):
     template_ = await cg.templatable(config[CONF_INDEX], args, cg.uint8)
     cg.add(var.set_index(template_))
 
-    # The schema will convert enum-name strings to numeric values already
-    # (via cv.All + lambda), so just pass the validated value to templatable.
+    # (via button_event_type), so just pass the validated value to templatable.
     template_ = await cg.templatable(config[CONF_ACTION], args, cg.uint8)
     cg.add(var.set_action(template_))
 

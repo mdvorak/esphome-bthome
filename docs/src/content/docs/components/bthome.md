@@ -213,6 +213,18 @@ Button events allow you to send various button press types to receivers. The BTH
 
 #### Using the `bthome.button_event` Action
 
+:::note[Event Support Requires Configuration]
+To use `bthome.button_event` and `bthome.dim_event` actions, you must set `max_events` in your `bthome:` configuration. For example:
+
+```yaml
+bthome:
+  max_events: 1  # Enable event support (at least 1 required)
+  # ... other config
+```
+
+Without `max_events > 0`, event actions will fail to compile because event functionality is compile-time gated.
+:::
+
 The `bthome.button_event` action supports both named event types and numeric values. You can use the shorthand syntax (just the event name/value) or the full syntax with explicit parameters.
 
 **Shorthand syntax** (recommended):
