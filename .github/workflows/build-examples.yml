@@ -32,6 +32,7 @@ jobs:
           - cpu_temp_esp32_nimble.yaml
           - two_gang_switch_esp32.yaml
           - esp32_devkit_basic.yaml
+          - button_dimmer_example.yaml
     steps:
       - name: Checkout
         uses: actions/checkout@v4

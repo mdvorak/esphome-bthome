@@ -261,7 +261,7 @@ template<typename... Ts> class ButtonEventAction : public Action<Ts...>, public 
   TEMPLATABLE_VALUE(uint8_t, index)
   TEMPLATABLE_VALUE(uint8_t, action)
 
-  void play(Ts... x) override {
+  void play(const Ts &...x) override {
     uint8_t idx = this->index_.value(x...);
     uint8_t act = this->action_.value(x...);
     this->parent_->send_button_event(idx, act);
@@ -273,7 +273,7 @@ template<typename... Ts> class DimEventAction : public Action<Ts...>, public Par
   TEMPLATABLE_VALUE(uint8_t, index)
   TEMPLATABLE_VALUE(int8_t, step)
 
-  void play(Ts... x) override {
+  void play(const Ts &...x) override {
     uint8_t idx = this->index_.value(x...);
     int8_t stp = this->step_.value(x...);
     this->parent_->send_dim_event(idx, stp);

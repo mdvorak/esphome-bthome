@@ -57,6 +57,8 @@ CONF_ACTION = "action"
 CONF_STEPS = "steps"
 CONF_MAX_EVENTS = "max_events"
 
+cv_int8_t = cv.int_range(min=-128, max=127)
+
 # =============================================================================
 # BTHome v2 Sensor Object IDs
 # See: https://bthome.io/format/
@@ -410,7 +412,7 @@ async def button_event_to_code(config, action_id, template_arg, args):
         {
             cv.GenerateID(): cv.use_id(BTHome),
             cv.Required(CONF_INDEX): cv.templatable(cv.uint8_t),
-            cv.Required(CONF_STEPS): cv.templatable(cv.int8_t),
+            cv.Required(CONF_STEPS): cv.templatable(cv_int8_t),
         }
     ),
 )
@@ -421,7 +423,7 @@ async def dim_event_to_code(config, action_id, template_arg, args):
     template_ = await cg.templatable(config[CONF_INDEX], args, cg.uint8)
     cg.add(var.set_index(template_))
     
-    template_ = await cg.templatable(config[CONF_STEPS], args, cg.int8)
+    template_ = await cg.templatable(config[CONF_STEPS], args, "::int8_t")
     cg.add(var.set_step(template_))
     
     return var

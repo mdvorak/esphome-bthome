@@ -21,14 +21,11 @@ esp32:
 
 logger:
 
-wifi:
-  ap: {}
-
 external_components:
-- source:
-    type: local
-    path: components
-  components: [ bthome ]
+  - source:
+      type: local
+      path: components
+    components: [ bthome ]
 
 # Required for ESP32 BLE
 esp32_ble:
@@ -36,7 +33,6 @@ esp32_ble:
 
 # BTHome configuration
 bthome:
-  id: bthome_broadcaster
   min_interval: 5s
   max_interval: 10s
   tx_power: 0
@@ -45,104 +41,66 @@ bthome:
 
 # Example button that triggers BTHome button events using actions
 binary_sensor:
-- platform: gpio
-  pin:
-    number: GPIO0
-    inverted: true
-    mode:
-      input: true
-      pullup: true
-  name: "Button 0"
-  on_press:
-    then:
-      - logger.log: "Button 0 pressed - sending BTHome button event"
-      # Using the new bthome.button_event action
-      - bthome.button_event:
-          id: bthome_broadcaster
-          index: 0
-          action: 0x01  # BUTTON_EVENT_PRESS
-
-  on_multi_click:
-    - timing:
-        - ON for at most 1s
-        - OFF for at most 1s
-        - ON for at most 1s
-        - OFF for at least 0.2s
+  - platform: gpio
+    pin:
+      number: GPIO21
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    name: "Button 0"
+    on_press:
       then:
-        - logger.log: "Button 0 double press"
+        - logger.log: "Button 0 pressed - sending BTHome button event"
         # Using the new bthome.button_event action
         - bthome.button_event:
-            id: bthome_broadcaster
             index: 0
-            action: 0x02  # BUTTON_EVENT_DOUBLE_PRESS
+            action: 0x01  # BUTTON_EVENT_PRESS
 
-- platform: gpio
-  pin:
-    number: GPIO1
-    inverted: true
-    mode:
-      input: true
-      pullup: true
-  name: "Button 1"
-  on_press:
-    then:
-      - logger.log: "Button 1 pressed"
-      # Using the new bthome.button_event action
-      - bthome.button_event:
-          id: bthome_broadcaster
-          index: 1
-          action: 0x01  # BUTTON_EVENT_PRESS
+    on_multi_click:
+      - timing:
+          - ON for at most 1s
+          - OFF for at most 1s
+          - ON for at most 1s
+          - OFF for at least 0.2s
+        then:
+          - logger.log: "Button 0 double press"
+          # Using the new bthome.button_event action
+          - bthome.button_event:
+              index: 0
+              action: 0x02  # BUTTON_EVENT_DOUBLE_PRESS
+
+  - platform: gpio
+    pin:
+      number: GPIO22
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    name: "Button 1"
+    on_press:
+      then:
+        - logger.log: "Button 1 pressed"
+        # Using the new bthome.button_event action
+        - bthome.button_event:
+            index: 1
+            action: 0x01  # BUTTON_EVENT_PRESS
 
 # Example sensor with dimmer control
 sensor:
-- platform: rotary_encoder
-  name: "Rotary Encoder"
-  id: rotary
-  pin_a: GPIO2
-  pin_b: GPIO3
-  on_value:
-    then:
-      - lambda: |-
-          static float last_value = 0;
-          float delta = x - last_value;
-          last_value = x;
-          
-          int8_t steps = (int8_t)delta;
-          if (steps != 0) {
-            // Direct C++ call for simplicity in lambda
-            id(bthome_broadcaster)->send_dim_event(0, steps);
-          }
-
-# Example API endpoints demonstrating the new actions
-api:
-  services:
-    - service: send_button_event
-      variables:
-        button_index: int
-        event_type: int
-      then:
-        - logger.log:
-            format: "API: sending button event index=%d type=0x%02X"
-            args: ['button_index', 'event_type']
-        # Using the new bthome.button_event action
-        - bthome.button_event:
-            id: bthome_broadcaster
-            index: !lambda "return button_index;"
-            action: !lambda "return event_type;"
-    
-    - service: send_dim_event
-      variables:
-        dimmer_index: int
-        steps: int
-      then:
-        - logger.log:
-            format: "API: sending dimmer event index=%d steps=%d"
-            args: ['dimmer_index', 'steps']
-        # Using the new bthome.dim_event action
-        - bthome.dim_event:
-            id: bthome_broadcaster
-            index: !lambda "return dimmer_index;"
-            steps: !lambda "return steps;"
+  - platform: rotary_encoder
+    name: "Rotary Encoder"
+    id: rotary
+    pin_a: GPIO16
+    pin_b: GPIO17
+    on_clockwise:
+      - bthome.dim_event:
+          index: 0
+          steps: 1
+    on_anticlockwise:
+      - bthome.dim_event:
+          index: 0
+          steps: -1
 
 # Button event type constants (BTHome v2 spec):
 # BUTTON_EVENT_NONE           = 0x00  # Special: no event (for multi-button advertisements)
@@ -159,4 +117,3 @@ api:
 #   Single button 1 double press:    send_button_event(1, 0x02)
 #   Button 0 press + Button 1 long:  send_button_events({0x01, 0x04})
 #   Only button 1 press:             send_button_events({0x00, 0x01})
-

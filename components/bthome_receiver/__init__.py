@@ -335,6 +335,6 @@ async def to_code(config):
             trigger = cg.new_Pvariable(dimmer_conf[CONF_ID], device_var)
             cg.add(trigger.set_dimmer_index(dimmer_conf[CONF_DIMMER_INDEX]))
             cg.add(device_var.add_dimmer_trigger(trigger))
-            await automation.build_automation(trigger, [(cg.int8, "steps")], dimmer_conf)
+            await automation.build_automation(trigger, [("::int8_t", "steps")], dimmer_conf)
 
         cg.add(var.register_device(device_var))
