@@ -432,7 +432,7 @@ async def button_event_to_code(config, action_id, template_arg, args):
     template_ = await cg.templatable(config[CONF_INDEX], args, cg.uint8)
     cg.add(var.set_index(template_))
 
-    # (via button_event_type), so just pass the validated value to templatable.
+    # Schema converts enum-name strings to numeric values (via button_event_type).
     template_ = await cg.templatable(config[CONF_ACTION], args, cg.uint8)
     cg.add(var.set_action(template_))
 
