@@ -20,9 +20,12 @@ concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   build-esp32:
-    name: Build ${{ matrix.config }}
+    name: Build ${{ matrix.device }} ${{ matrix.config }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -33,6 +36,9 @@ jobs:
           - two_gang_switch_esp32.yaml
           - esp32_devkit_basic.yaml
           - button_dimmer_example.yaml
+        device:
+          - esp32dev
+          - esp32-c3-devkitm-1
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -46,8 +52,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.platformio
-          key: pio-esp32-${{ hashFiles('components/**') }}
-          restore-keys: pio-esp32-
+          key: pio-${{ matrix.device }}-${{ hashFiles('components/**') }}
+          restore-keys: pio-${{ matrix.device }}-
+
+      - name: Set ESPHome device
+        uses: mikefarah/yq@v4
+        with:
+          cmd: yq '.esp32.board = "${{ matrix.device }}"' -i ${{ matrix.config }}
 
       - name: Compile ${{ matrix.config }}
         run: |
