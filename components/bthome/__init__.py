@@ -21,6 +21,7 @@ from esphome.const import (
     CONF_TYPE,
 )
 from esphome.core import CORE, TimePeriod
+from esphome import automation
 
 CODEOWNERS = ["@esphome/core"]
 
@@ -39,6 +40,10 @@ BLE_STACK_NIMBLE = "nimble"
 bthome_ns = cg.esphome_ns.namespace("bthome")
 BTHome = bthome_ns.class_("BTHome", cg.Component)
 
+# Actions for sending events
+ButtonEventAction = bthome_ns.class_("ButtonEventAction", automation.Action)
+DimEventAction = bthome_ns.class_("DimEventAction", automation.Action)
+
 # Configuration constants
 CONF_ENCRYPTION_KEY = "encryption_key"
 CONF_MIN_INTERVAL = "min_interval"
@@ -47,6 +52,12 @@ CONF_ADVERTISE_IMMEDIATELY = "advertise_immediately"
 CONF_TRIGGER_BASED = "trigger_based"
 CONF_RETRANSMIT_COUNT = "retransmit_count"
 CONF_RETRANSMIT_INTERVAL = "retransmit_interval"
+CONF_INDEX = "index"
+CONF_ACTION = "action"
+CONF_STEPS = "steps"
+CONF_MAX_EVENTS = "max_events"
+
+cv_int8_t = cv.int_range(min=-128, max=127)
 
 # =============================================================================
 # BTHome v2 Sensor Object IDs
@@ -234,6 +245,7 @@ CONFIG_SCHEMA = cv.All(
                 cv.positive_time_period_milliseconds,
                 cv.Range(min=TimePeriod(milliseconds=100), max=TimePeriod(milliseconds=2000)),
             ),
+            cv.Optional(CONF_MAX_EVENTS, default=0): cv.int_range(min=0, max=16),
             cv.Optional(CONF_SENSORS): cv.ensure_list(
                 cv.Schema(
                     {
@@ -265,11 +277,17 @@ async def to_code(config):
     num_sensors = max(1, len(config.get(CONF_SENSORS, [])))
     num_binary_sensors = max(1, len(config.get(CONF_BINARY_SENSORS, [])))
     max_packets = max(1, num_sensors + num_binary_sensors)
+    max_events = config.get(CONF_MAX_EVENTS)
 
     # Add defines for compile-time sizes
     cg.add_define("BTHOME_MAX_MEASUREMENTS", num_sensors)
     cg.add_define("BTHOME_MAX_BINARY_MEASUREMENTS", num_binary_sensors)
     cg.add_define("BTHOME_MAX_ADV_PACKETS", max_packets)
+    cg.add_define("BTHOME_MAX_EVENTS", max_events)
+    
+    # Define BTHOME_USE_EVENTS if max_events is above zero
+    if max_events > 0:
+        cg.add_define("BTHOME_USE_EVENTS")
 
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
@@ -357,3 +375,55 @@ async def to_code(config):
         zephyr_add_prj_conf("TINYCRYPT", True)
         zephyr_add_prj_conf("TINYCRYPT_AES", True)
         zephyr_add_prj_conf("TINYCRYPT_AES_CCM", True)
+
+
+# =============================================================================
+# Actions for sending button and dimmer events
+# =============================================================================
+
+@automation.register_action(
+    "bthome.button_event",
+    ButtonEventAction,
+    cv.Schema(
+        {
+            cv.GenerateID(): cv.use_id(BTHome),
+            cv.Required(CONF_INDEX): cv.templatable(cv.uint8_t),
+            cv.Required(CONF_ACTION): cv.templatable(cv.uint8_t),
+        }
+    ),
+)
+async def button_event_to_code(config, action_id, template_arg, args):
+    var = cg.new_Pvariable(action_id, template_arg)
+    await cg.register_parented(var, config[CONF_ID])
+    
+    template_ = await cg.templatable(config[CONF_INDEX], args, cg.uint8)
+    cg.add(var.set_index(template_))
+    
+    template_ = await cg.templatable(config[CONF_ACTION], args, cg.uint8)
+    cg.add(var.set_action(template_))
+    
+    return var
+
+
+@automation.register_action(
+    "bthome.dim_event",
+    DimEventAction,
+    cv.Schema(
+        {
+            cv.GenerateID(): cv.use_id(BTHome),
+            cv.Required(CONF_INDEX): cv.templatable(cv.uint8_t),
+            cv.Required(CONF_STEPS): cv.templatable(cv_int8_t),
+        }
+    ),
+)
+async def dim_event_to_code(config, action_id, template_arg, args):
+    var = cg.new_Pvariable(action_id, template_arg)
+    await cg.register_parented(var, config[CONF_ID])
+    
+    template_ = await cg.templatable(config[CONF_INDEX], args, cg.uint8)
+    cg.add(var.set_index(template_))
+    
+    template_ = await cg.templatable(config[CONF_STEPS], args, "::int8_t")
+    cg.add(var.set_step(template_))
+    
+    return var

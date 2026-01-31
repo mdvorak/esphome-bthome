@@ -157,6 +157,12 @@ class BTHomeButtonTrigger : public Trigger<>, public Parented<BTHomeDevice> {
 class BTHomeDimmerTrigger : public Trigger<int8_t>, public Parented<BTHomeDevice> {
  public:
   explicit BTHomeDimmerTrigger(BTHomeDevice *parent) : Parented(parent) {}
+
+  void set_dimmer_index(uint8_t index) { this->dimmer_index_ = index; }
+  uint8_t get_dimmer_index() const { return this->dimmer_index_; }
+
+ protected:
+  uint8_t dimmer_index_{0};
 };
 
 // =============================================================================
@@ -212,7 +218,7 @@ class BTHomeDevice : public Parented<BTHomeReceiverHub> {
 
   // Handle events
   void handle_button_event_(uint8_t button_index, uint8_t event_type);
-  void handle_dimmer_event_(int8_t steps);
+  void handle_dimmer_event_(uint8_t dimmer_index, int8_t steps);
 
   uint64_t address_{0};
   std::string name_;

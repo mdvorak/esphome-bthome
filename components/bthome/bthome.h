@@ -3,6 +3,7 @@
 #include "esphome/core/defines.h"
 #include "esphome/core/component.h"
 #include "esphome/core/helpers.h"
+#include "esphome/core/automation.h"
 #ifdef USE_SENSOR
 #include "esphome/components/sensor/sensor.h"
 #endif
@@ -52,6 +53,32 @@ static const uint8_t BTHOME_DEVICE_INFO_TRIGGER_UNENCRYPTED = 0x44;   // Trigger
 static const uint8_t BTHOME_DEVICE_INFO_TRIGGER_ENCRYPTED = 0x45;     // Trigger-based device, encrypted
 static const size_t MAX_BLE_ADVERTISEMENT_SIZE = 31;
 static const size_t MAX_DEVICE_NAME_LENGTH = 20;  // Leave room for other AD elements
+
+// Event object IDs
+static const uint8_t OBJECT_ID_BUTTON = 0x3A;
+static const uint8_t OBJECT_ID_DIMMER = 0x3C;
+
+// Button event types (BTHome v2 spec object ID 0x3A)
+static const uint8_t BUTTON_EVENT_NONE = 0x00;
+static const uint8_t BUTTON_EVENT_PRESS = 0x01;
+static const uint8_t BUTTON_EVENT_DOUBLE_PRESS = 0x02;
+static const uint8_t BUTTON_EVENT_TRIPLE_PRESS = 0x03;
+static const uint8_t BUTTON_EVENT_LONG_PRESS = 0x04;
+static const uint8_t BUTTON_EVENT_LONG_DOUBLE_PRESS = 0x05;
+static const uint8_t BUTTON_EVENT_LONG_TRIPLE_PRESS = 0x06;
+static const uint8_t BUTTON_EVENT_HOLD_PRESS = 0x80;
+
+#ifdef BTHOME_USE_EVENTS
+// Event structure for sending button and dimmer events
+// Packed to 16 bits for efficient storage and passing
+struct BTHomeEvent {
+  uint8_t object_id;  // BTHome object ID (0x3A for button, 0x3C for dimmer)
+  union {
+    uint8_t event;    // Button event (0x3A)
+    int8_t step;      // Dimmer step (0x3C)
+  } data;
+} __attribute__((packed));
+#endif
 
 #ifdef USE_SENSOR
 struct SensorMeasurement {
@@ -110,6 +137,13 @@ class BTHome : public Component {
   void add_binary_measurement(binary_sensor::BinarySensor *sensor, uint8_t object_id, bool advertise_immediately);
 #endif
 
+#ifdef BTHOME_USE_EVENTS
+  // Event methods for button and dimmer events
+  void send_events(const BTHomeEvent *events, size_t count);
+  void send_button_event(uint8_t index, uint8_t action);
+  void send_dim_event(uint8_t index, int8_t step);
+#endif
+
 #if defined(USE_ESP32) && defined(USE_BTHOME_BLUEDROID)
   void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param) override;
 #endif
@@ -125,8 +159,12 @@ class BTHome : public Component {
 #ifdef USE_BINARY_SENSOR
   size_t encode_binary_measurement_(uint8_t *data, size_t max_len, uint8_t object_id, bool value);
 #endif
+  size_t encode_event_(uint8_t *data, size_t max_len, uint8_t object_id, const uint8_t *event_data, size_t event_data_len);
   bool encrypt_payload_(const uint8_t *plaintext, size_t plaintext_len, uint8_t *ciphertext, size_t *ciphertext_len);
-  void trigger_immediate_advertising_(uint8_t measurement_index, bool is_binary);
+  void trigger_immediate_sensor_advertising_(uint8_t measurement_index, bool is_binary);
+#ifdef BTHOME_USE_EVENTS
+  void trigger_immediate_event_advertising_(const BTHomeEvent *events, size_t count);
+#endif
 
   // Measurements storage
 #ifdef USE_SENSOR
@@ -178,6 +216,12 @@ class BTHome : public Component {
   bool immediate_advertising_pending_{false};
   uint8_t immediate_adv_measurement_index_{0};
   bool immediate_adv_is_binary_{false};
+  
+#ifdef BTHOME_USE_EVENTS
+  // Immediate event advertising
+  BTHomeEvent immediate_event_data_[BTHOME_MAX_EVENTS];
+  size_t immediate_event_count_{0};
+#endif
 
   // Platform-specific members
 #ifdef USE_ESP32
@@ -206,6 +250,36 @@ class BTHome : public Component {
   struct bt_data sd_[5];  // Scan response data (service UUID, TX power, appearance, name, manufacturer)
 #endif
 };
+
+#ifdef BTHOME_USE_EVENTS
+// =============================================================================
+// Actions for sending button and dimmer events
+// =============================================================================
+
+template<typename... Ts> class ButtonEventAction : public Action<Ts...>, public Parented<BTHome> {
+ public:
+  TEMPLATABLE_VALUE(uint8_t, index)
+  TEMPLATABLE_VALUE(uint8_t, action)
+
+  void play(const Ts &...x) override {
+    uint8_t idx = this->index_.value(x...);
+    uint8_t act = this->action_.value(x...);
+    this->parent_->send_button_event(idx, act);
+  }
+};
+
+template<typename... Ts> class DimEventAction : public Action<Ts...>, public Parented<BTHome> {
+ public:
+  TEMPLATABLE_VALUE(uint8_t, index)
+  TEMPLATABLE_VALUE(int8_t, step)
+
+  void play(const Ts &...x) override {
+    uint8_t idx = this->index_.value(x...);
+    int8_t stp = this->step_.value(x...);
+    this->parent_->send_dim_event(idx, stp);
+  }
+};
+#endif
 
 }  // namespace bthome
 }  // namespace esphome
