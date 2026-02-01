@@ -111,7 +111,7 @@ esphome:
   friendly_name: Weather Station
 
 esp32:
-  board: esp32dev
+  variant: esp32
   framework:
     type: esp-idf
 
@@ -411,7 +411,7 @@ esphome:
   friendly_name: BTHome Sensor
 
 esp32:
-  board: esp32dev
+  variant: esp32
   framework:
     type: esp-idf
 
@@ -470,7 +470,7 @@ esphome:
   friendly_name: Battery Sensor
 
 esp32:
-  board: esp32dev
+  variant: esp32
   framework:
     type: esp-idf
 
@@ -527,7 +527,7 @@ esphome:
   friendly_name: Motion Sensor
 
 esp32:
-  board: esp32dev
+  variant: esp32
   framework:
     type: esp-idf
 

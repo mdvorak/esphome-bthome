@@ -21,7 +21,7 @@ esphome:
   friendly_name: BTHome ESP32
 
 esp32:
-  board: esp32dev
+  variant: esp32
   framework:
     type: esp-idf
 
@@ -47,7 +47,7 @@ BTHome requires the **ESP-IDF** framework (not Arduino):
 
 ```yaml
 esp32:
-  board: esp32dev
+  variant: esp32
   framework:
     type: esp-idf  # Required!
 ```
@@ -100,7 +100,7 @@ esphome:
   friendly_name: BTHome ESP32 Sensor
 
 esp32:
-  board: esp32dev
+  variant: esp32
   framework:
     type: esp-idf
 

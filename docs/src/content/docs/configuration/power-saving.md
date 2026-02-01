@@ -11,7 +11,7 @@ Lower the CPU frequency from 240MHz (default) to 80MHz for significant power sav
 
 ```yaml
 esp32:
-  board: seeed_xiao_esp32s3
+  variant: esp32s3
   framework:
     type: esp-idf
     sdkconfig_options:
@@ -84,7 +84,7 @@ esphome:
   friendly_name: BTHome Sensor
 
 esp32:
-  board: seeed_xiao_esp32s3
+  variant: esp32s3
   framework:
     type: esp-idf
     sdkconfig_options:

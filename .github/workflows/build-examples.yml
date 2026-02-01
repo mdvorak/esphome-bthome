@@ -3,13 +3,13 @@ name: Build Examples
 
 on:
   push:
-    branches: ["main"]
+    branches: [ "main" ]
     paths:
       - 'components/**'
       - '*.yaml'
       - '.github/workflows/build-examples.yml'
   pull_request:
-    branches: ["main"]
+    branches: [ "main" ]
     paths:
       - 'components/**'
       - '*.yaml'
@@ -25,7 +25,7 @@ permissions:
 
 jobs:
   build-esp32:
-    name: Build ${{ matrix.config }} for ${{ matrix.device.name }}
+    name: Build ${{ matrix.config }} for ${{ matrix.variant }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -38,13 +38,13 @@ jobs:
           - button_dimmer_example.yaml
           - bthome_receiver_nimble.yaml
           - bthome_receiver_bluedroid.yaml
-        device:
-          - {name: esp32, board: esp32dev}
-          - {name: esp32-c3, board: esp32-c3-devkitm-1}
-          - {name: esp32-s3, board: seeed_xiao_esp32s3}
+        variant:
+          - esp32
+          - esp32c3
+          - esp32s3
         exclude:
-          # Unsupported NimBLE stack on ESP32 DevKit
-          - {config: cpu_temp_esp32_nimble.yaml, device: {name: esp32, board: esp32dev}}
+          # Unsupported NimBLE stack on ESP32
+          - { config: cpu_temp_esp32_nimble.yaml, variant: esp32 }
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -58,13 +58,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.platformio
-          key: pio-${{ matrix.device.board }}-${{ hashFiles('components/**') }}
-          restore-keys: pio-${{ matrix.device.board }}-
+          key: pio-${{ matrix.variant }}-${{ hashFiles('components/**') }}
+          restore-keys: pio-${{ matrix.variant }}-
 
-      - name: Set ESPHome device
+      - name: Set ESPHome variant
         uses: mikefarah/yq@v4
         with:
-          cmd: yq '.esp32.board = "${{ matrix.device.board }}"' -i ${{ matrix.config }}
+          cmd: yq '.esp32.variant = "${{ matrix.variant }}"' -i ${{ matrix.config }}
 
       - name: Compile ${{ matrix.config }}
         run: |

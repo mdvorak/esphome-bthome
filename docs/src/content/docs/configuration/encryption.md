@@ -84,7 +84,7 @@ esphome:
   friendly_name: Secure Sensor
 
 esp32:
-  board: esp32dev
+  variant: esp32
   framework:
     type: esp-idf
 

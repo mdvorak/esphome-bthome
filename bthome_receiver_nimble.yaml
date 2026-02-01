@@ -10,7 +10,7 @@ esphome:
   name: bthome-receiver-nimble
 
 esp32:
-  board: seeed_xiao_esp32s3
+  variant: esp32s3
   framework:
     type: esp-idf # Required for NimBLE
 

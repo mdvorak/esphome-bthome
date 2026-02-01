@@ -337,6 +337,9 @@ void BTHomeReceiverHub::dump_advertisement_(uint64_t address, const uint8_t *dat
   std::string measurements;
   size_t pos = 1;  // Skip device_info
 
+  uint8_t button_index = 0;
+  uint8_t dimmer_index = 0;
+
   while (pos < len) {
     if (pos + 1 > len) break;
 
@@ -354,9 +357,10 @@ void BTHomeReceiverHub::dump_advertisement_(uint64_t address, const uint8_t *dat
       if (pos + 1 > len) break;
       uint8_t event_type = data[pos++];
       char val_str[32];
-      snprintf(val_str, sizeof(val_str), "%s=0x%02X", name, event_type);
+      snprintf(val_str, sizeof(val_str), "%s[%d]=0x%02X", name, button_index, event_type);
       if (!measurements.empty()) measurements += " ";
       measurements += val_str;
+      button_index++;
       continue;
     }
     
@@ -364,9 +368,10 @@ void BTHomeReceiverHub::dump_advertisement_(uint64_t address, const uint8_t *dat
       if (pos + 1 > len) break;
       int8_t steps = static_cast<int8_t>(data[pos++]);
       char val_str[32];
-      snprintf(val_str, sizeof(val_str), "%s=%d", name, steps);
+      snprintf(val_str, sizeof(val_str), "%s[%d]=%d", name, dimmer_index, steps);
       if (!measurements.empty()) measurements += " ";
       measurements += val_str;
+      dimmer_index++;
       continue;
     }
 

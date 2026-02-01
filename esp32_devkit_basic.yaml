@@ -10,7 +10,7 @@ esphome:
   friendly_name: BTHome ESP32 DevKit
 
 esp32:
-  board: esp32dev
+  variant: esp32
   framework:
     type: esp-idf
 

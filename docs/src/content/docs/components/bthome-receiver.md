@@ -435,7 +435,7 @@ esphome:
   name: bthome-receiver-bluedroid
 
 esp32:
-  board: esp32dev
+  variant: esp32
   framework:
     type: esp-idf
 
@@ -497,7 +497,7 @@ esphome:
   name: bthome-receiver-nimble
 
 esp32:
-  board: seeed_xiao_esp32s3
+  variant: esp32s3
   framework:
     type: esp-idf  # Required for NimBLE
 

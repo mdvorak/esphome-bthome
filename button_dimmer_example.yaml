@@ -15,7 +15,7 @@ esphome:
         - logger.log: "BTHome ready with unified event API."
 
 esp32:
-  board: esp32dev
+  variant: esp32
   framework:
     type: esp-idf
 

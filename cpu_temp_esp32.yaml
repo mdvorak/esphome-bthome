@@ -9,7 +9,7 @@ esphome:
   friendly_name: BTHome CPU Temp
 
 esp32:
-  board: seeed_xiao_esp32s3
+  variant: esp32s3
   framework:
     type: esp-idf
     sdkconfig_options:
