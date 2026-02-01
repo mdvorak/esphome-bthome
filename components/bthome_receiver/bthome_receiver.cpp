@@ -568,9 +568,9 @@ void BTHomeReceiverHub::start_scanning_() {
   // Filter duplicates disabled to receive all advertisements
   disc_params.filter_duplicates = 0;
   // Scan interval and window (in 0.625ms units)
-  // 160 = 100ms interval, 80 = 50ms window
-  disc_params.itvl = 160;
-  disc_params.window = 80;
+  // Convert from milliseconds: ms * 1000 / 625 = ms * 1.6
+  disc_params.itvl = (this->scan_interval_ms_ * 1000) / 625;
+  disc_params.window = (this->scan_window_ms_ * 1000) / 625;
   // Limited discovery mode disabled
   disc_params.limited = 0;
 
@@ -581,7 +581,7 @@ void BTHomeReceiverHub::start_scanning_() {
   }
 
   this->scanning_ = true;
-  ESP_LOGI(TAG, "BLE scanning started");
+  ESP_LOGI(TAG, "BLE scanning started (interval=%ums, window=%ums)", this->scan_interval_ms_, this->scan_window_ms_);
 }
 
 void BTHomeReceiverHub::stop_scanning_() {

@@ -40,6 +40,8 @@ CONF_EVENT = "event"
 CONF_BUTTON_INDEX = "button_index"
 CONF_DIMMER_INDEX = "dimmer_index"
 CONF_DUMP_INTERVAL = "dump_interval"
+CONF_SCAN_INTERVAL = "scan_interval"
+CONF_SCAN_WINDOW = "scan_window"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -233,6 +235,9 @@ _BASE_SCHEMA = cv.Schema(
         ),
         # Interval for periodic dump of all detected devices (0 = disabled)
         cv.Optional(CONF_DUMP_INTERVAL): cv.positive_time_period_milliseconds,
+        # Scan interval and window (NimBLE only)
+        cv.Optional(CONF_SCAN_INTERVAL): cv.positive_time_period_milliseconds,
+        cv.Optional(CONF_SCAN_WINDOW): cv.positive_time_period_milliseconds,
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
@@ -244,6 +249,12 @@ def _final_validate(config):
     if ble_stack == BLE_STACK_NIMBLE:
         if CORE.using_arduino:
             raise cv.Invalid("NimBLE BLE stack requires ESP-IDF framework, not Arduino")
+
+    # Scan interval/window only supported on NimBLE
+    if ble_stack != BLE_STACK_NIMBLE:
+        if CONF_SCAN_INTERVAL in config or CONF_SCAN_WINDOW in config:
+            raise cv.Invalid(f"{CONF_SCAN_INTERVAL} and {CONF_SCAN_WINDOW} are only supported with ble_stack: {BLE_STACK_NIMBLE}")
+
     return config
 
 
@@ -263,6 +274,12 @@ async def to_code(config):
         cg.add(var.set_dump_interval(config[CONF_DUMP_INTERVAL]))
         # Note: dumps can consume a lot of RAM and eventually crash the device
         _LOGGER.warning("Enabled BLE device periodic dump, this should not be enabled during normal operation")
+
+    # Set scan interval and window (NimBLE only)
+    if CONF_SCAN_INTERVAL in config:
+        cg.add(var.set_scan_interval(config[CONF_SCAN_INTERVAL]))
+    if CONF_SCAN_WINDOW in config:
+        cg.add(var.set_scan_window(config[CONF_SCAN_WINDOW]))
 
     ble_stack = config.get(CONF_BLE_STACK, BLE_STACK_BLUEDROID)
 

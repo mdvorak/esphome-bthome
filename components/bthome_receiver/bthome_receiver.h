@@ -267,6 +267,10 @@ class BTHomeReceiverHub : public Component {
   // Set interval for periodic dump of all detected devices (in ms, 0 = disabled)
   void set_dump_interval(uint32_t interval) { this->dump_interval_ = interval; }
 
+  // Set scan interval and window (in ms, NimBLE only)
+  void set_scan_interval(uint32_t interval) { this->scan_interval_ms_ = interval; }
+  void set_scan_window(uint32_t window) { this->scan_window_ms_ = window; }
+
 #ifdef USE_BTHOME_RECEIVER_BLUEDROID
   // ESPBTDeviceListener interface - called when BLE advertisement is received
   bool parse_device(const esphome::esp32_ble_tracker::ESPBTDevice &device) override;
@@ -284,6 +288,11 @@ class BTHomeReceiverHub : public Component {
   // Periodic dump interval (ms, 0 = disabled)
   uint32_t dump_interval_{0};
   uint32_t last_dump_time_{0};
+
+  // Scan interval and window (ms, NimBLE only)
+  // Default: 160 * 0.625ms = 100ms interval, 80 * 0.625ms = 50ms window
+  uint32_t scan_interval_ms_{100};
+  uint32_t scan_window_ms_{50};
 
   // Cache of detected BTHome devices for periodic dump
   // Stores: MAC address -> (last_data, last_seen_time)
