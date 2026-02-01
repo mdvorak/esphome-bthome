@@ -7,7 +7,7 @@ esphome:
   friendly_name: BTHome CPU Temp (NimBLE)
 
 esp32:
-  variant: esp32s3
+  variant: esp32
   framework:
     type: esp-idf
     sdkconfig_options:

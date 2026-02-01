@@ -278,9 +278,9 @@ async def to_code(config):
 
         # Configure NimBLE roles - only observer needed for receiving
         add_idf_sdkconfig_option("CONFIG_BT_NIMBLE_ROLE_OBSERVER", True)
-        # TODO
+        # TODO conflicts with bthome transmitter if using both
         # add_idf_sdkconfig_option("CONFIG_BT_NIMBLE_ROLE_BROADCASTER", False)
-        add_idf_sdkconfig_option("CONFIG_BT_NIMBLE_ROLE_CENTRAL", False)
+        add_idf_sdkconfig_option("CONFIG_BT_NIMBLE_ROLE_CENTRAL", True)
         add_idf_sdkconfig_option("CONFIG_BT_NIMBLE_ROLE_PERIPHERAL", False)
 
         # Use tinycrypt for smaller footprint

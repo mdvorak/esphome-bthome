@@ -260,11 +260,11 @@ CONFIG_SCHEMA = cv.All(
             ),
             cv.Optional(CONF_MIN_INTERVAL, default="1s"): cv.All(
                 cv.positive_time_period_milliseconds,
-                cv.Range(min=TimePeriod(milliseconds=1000), max=TimePeriod(milliseconds=10240)),
+                cv.Range(min=TimePeriod(milliseconds=20), max=TimePeriod(milliseconds=10240)),
             ),
             cv.Optional(CONF_MAX_INTERVAL, default="1s"): cv.All(
                 cv.positive_time_period_milliseconds,
-                cv.Range(min=TimePeriod(milliseconds=1000), max=TimePeriod(milliseconds=10240)),
+                cv.Range(min=TimePeriod(milliseconds=20), max=TimePeriod(milliseconds=10240)),
             ),
             cv.Optional(CONF_TX_POWER, default=0): validate_tx_power,
             cv.Optional(CONF_ENCRYPTION_KEY): validate_encryption_key,
@@ -375,10 +375,10 @@ async def to_code(config):
             add_idf_sdkconfig_option("CONFIG_BT_CONTROLLER_ENABLED", True)
             # Disable Bluedroid
             add_idf_sdkconfig_option("CONFIG_BT_BLUEDROID_ENABLED", False)
-            # NimBLE roles - only broadcaster needed for BTHome
+            # NimBLE roles - only broadcaster needed for BTHome, but peripheral fixes some linkage errors
             add_idf_sdkconfig_option("CONFIG_BT_NIMBLE_ROLE_CENTRAL", False)
             add_idf_sdkconfig_option("CONFIG_BT_NIMBLE_ROLE_OBSERVER", False)
-            add_idf_sdkconfig_option("CONFIG_BT_NIMBLE_ROLE_PERIPHERAL", False)
+            add_idf_sdkconfig_option("CONFIG_BT_NIMBLE_ROLE_PERIPHERAL", True)
             add_idf_sdkconfig_option("CONFIG_BT_NIMBLE_ROLE_BROADCASTER", True)
             # Use tinycrypt for smaller footprint (saves ~7KB)
             add_idf_sdkconfig_option("CONFIG_BT_NIMBLE_CRYPTO_STACK_MBEDTLS", False)
